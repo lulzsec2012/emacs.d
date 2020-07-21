@@ -1,3 +1,6 @@
+;;(setq emacs_config_version nil)
+(setq emacs_config_version t)
+(if emacs_config_version
 (require 'package)
 (setq package-archives
       '(("gnu"   . "https://elpa.emacs-china.org/gnu/")
@@ -17,3 +20,6 @@
   (package-install 'use-package))
 
 (org-babel-load-file "~/.emacs.d/configuration.org")
+)
+(load-file "~/.emacs.d/Emacs_ingenic/.emacs")
+

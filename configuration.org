@@ -1,7 +1,7 @@
 #+TITLE: Emacs Configuration
 #+ORIGNAL:Harry R. Schwartz
-#+AUTHOR: MattLu
-#+EMAIL: lu.man@outlook.com
+#+AUTHOR: Lulzsec2012
+#+EMAIL: lulzsec2012@gmail.com
 #+OPTIONS: toc:nil num:nil
 [[https://github.com/hrs/dotfiles][Harry R. Schwartz]]
 * Configure =use-package=
@@ -308,7 +308,7 @@ Note that this overrides the default font-related keybindings from
       (setq MattLu/default-font "Ubuntu Mono")
     (setq MattLu/default-font "Source Code Variable"))
 
-  (setq MattLu/default-font-size 12)
+  (setq MattLu/default-font-size 16)
   (setq MattLu/current-font-size MattLu/default-font-size)
 
   (setq MattLu/font-change-increment 1.1)
@@ -351,7 +351,8 @@ Note that this overrides the default font-related keybindings from
     (MattLu/reset-font-size))
 #+END_SRC
 
-** Highlight the current line
+
+** COMMENT Highlight the current line
 
 =global-hl-line-mode= softly highlights the background color of the line
 containing point. It makes it a bit easier to find point, and it's useful when
@@ -371,7 +372,7 @@ programming.
    :hook ((prog-mode vc-dir-mode) . turn-on-diff-hl-mode))
  #+END_SRC
 
-** Display line number
+** COMMENT Display line number
 
 #+BEGIN_SRC emacs-lisp
   (setq display-line-numbers-type 'visual)
@@ -798,7 +799,7 @@ Use =smartparens=
     (smartparens-global-mode 1))
 #+END_SRC
 
-*** YCMD
+*** COMMENT ycmd
 
 YouCompltedMe setup
 
@@ -844,7 +845,7 @@ The main part
      ((c-mode c++-mode) . MattLu/company-mode-c-mode-hook)))
 #+END_SRC
 
-*** eglot LSP
+*** COMMENT eglot
 
 LSP client
 #+BEGIN_SRC emacs-lisp
@@ -865,7 +866,7 @@ LSP client
     (add-to-list 'eglot-ignored-server-capabilites
                  :documentHighlightProvider)
     :hook
-    ((c-mode c++-mode python-mode sh-mode typescript-mode)
+    ((c-mode c++-mode python-mode) ;;sh-mode typescript-mode
      . eglot-ensure))
 #+END_SRC
 
@@ -1666,14 +1667,18 @@ using priority to organize my life
                  '(org-agenda-skip-entry-if 'nottodo 'done))
             (org-agenda-sorting-strategy '(timestamp-up))))
 
-          ("" . "Task and rendez-vous for today")
-          ("" "Travail (tout)" agenda "Tasks and rdv for today"
+          ("
+" . "Task and rendez-vous for today")
+          ("
+
+" "Travail (tout)" agenda "Tasks and rdv for today"
            ((org-agenda-span 1)
             (org-agenda-files (org-file-path '("gtd.org" "matt.org")))
             (org-deadline-warning-days 3)
             (org-agenda-sorting-strategy
              '(todo-state-up time-up priority-down))))
-          (" " "Libre (tout)" agenda "Tasks and rdv for today"
+          ("
+ " "Libre (tout)" agenda "Tasks and rdv for today"
            ((org-agenda-span 1)
             (org-agenda-files (org-file-path '("libre.org")))
             (org-deadline-warning-days 3)
@@ -2410,7 +2415,7 @@ warp selected region with punctuate.
        ("`" "`" nil (markdown-mode ruby-mode)))))
 #+END_SRC
 
-** Use multiple cursors
+** COMMENT Use projectile everywhere
 
 Hydra short-keys
 #+begin_src emacs-lisp
@@ -2608,7 +2613,7 @@ fast-scroll may enable flyspell although we disable flyspell by defaults.
     (setq fast-scroll-throttle 0.5))
 #+END_SRC
 
-** jump back and forth
+** COMMENT jump back and forth
 
 Hydra short-keys
 #+begin_src emacs-lisp
