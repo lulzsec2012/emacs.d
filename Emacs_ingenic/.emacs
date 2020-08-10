@@ -400,9 +400,25 @@ This is used by `comint-watch-for-password-prompt'."
                  (p2 (window-point w2)))
             (set-window-buffer-start-and-point w1 b2 s2 p2)
             (set-window-buffer-start-and-point w2 b1 s1 p1)))))))
+(global-set-key (kbd "C-x 6")'rotate-split)
 
 (global-set-key (kbd "M-[ h")'move-beginning-of-line)
 (global-set-key (kbd "M-[ f")'move-end-of-line)
+(defun rotate-split ()
+  (interactive)
+  (let ((root (car (window-tree))))
+    (if (listp root)
+        (let* ((w1 (nth 2 root))
+               (w2 (nth 3 root))
+               (b1 (window-buffer w1))
+               (b2 (window-buffer w2)))
+          (cond ((car root)             ; currently vertically split
+                 (delete-window w2)
+                 (set-window-buffer (split-window-horizontally) b2))
+                (t                      ; currently horizontally split
+                 (delete-window w1)
+                 (set-window-buffer (split-window-vertically) b1))))
+      (message "Root window not split"))))
 
 ;;gtags
 (add-hook 'c-mode-hook 'counsel-gtags-mode)
