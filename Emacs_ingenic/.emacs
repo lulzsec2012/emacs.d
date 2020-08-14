@@ -46,8 +46,8 @@
 ;; also subsequent sessions. You can also save the state at any
 ;; time, without exiting Emacs, by typing M-x desktop-save again.
 ;; =================================================================
-(load "desktop")
-(desktop-load-default)
+;;(load "desktop")
+;;(desktop-load-default)
 
 ;; make .l_bashrc shell-script file
 (setq auto-mode-alist (cons '("bashrc" . shell-script-mode) auto-mode-alist))
