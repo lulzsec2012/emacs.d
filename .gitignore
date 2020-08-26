@@ -8,5 +8,4 @@
 !.gitmodules
 !custom-face.el
 !.mc-lists.el
-!llvm-mode+
-!Emacs_ingenic
+!third_party
