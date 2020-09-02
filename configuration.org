@@ -2636,7 +2636,7 @@ Hydra short-keys
                 ;;("C-<left>" . hydra-back-and-forth/back-button-local-backward)
                 ;;("C-<up>" . hydra-back-and-forth/back-button-global-backward)
                 ;;("C-<down>" . hydra-back-and-forth/back-button-global-forward)
-                ("<C-f6>" . hydra-back-and-forth/back-button-global-forward))
+                ("<C-f7>" . hydra-back-and-forth/back-button-global-forward))
     :init
     (back-button-mode 1)
     (define-key back-button-mode-map (kbd "C-x <C-left>") nil)
