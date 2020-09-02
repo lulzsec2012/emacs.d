@@ -2631,10 +2631,11 @@ Hydra short-keys
 #+begin_src emacs-lisp
   (use-package back-button
     :bind (:map back-button-mode-map
-                ("C-<right>" . hydra-back-and-forth/back-button-local-forward)
-                ("C-<left>" . hydra-back-and-forth/back-button-local-backward)
-                ("C-<up>" . hydra-back-and-forth/back-button-global-backward)
-                ("C-<down>" . hydra-back-and-forth/back-button-global-forward))
+                ;;("C-<right>" . hydra-back-and-forth/back-button-local-forward)
+                ;;("C-<left>" . hydra-back-and-forth/back-button-local-backward)
+                ;;("C-<up>" . hydra-back-and-forth/back-button-global-backward)
+                ;;("C-<down>" . hydra-back-and-forth/back-button-global-forward)
+                ("<C-f6>" . hydra-back-and-forth/back-button-global-forward))
     :init
     (back-button-mode 1)
     (define-key back-button-mode-map (kbd "C-x <C-left>") nil)
