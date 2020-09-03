@@ -393,11 +393,21 @@ programming.
 
 ** display system Information
 
+#+begin_src emacs-lisp
+  (defun symon--display-update-modify (orig-fun &rest args)
+    "symon step aside other message"
+    (if (current-message)
+        (when (string-match-p "\\(MEM:+.*CPU:+.*RX:+.*TX:+.*\\|Quit\\)" (current-message))
+          (apply orig-fun args))
+    (apply orig-fun args)))
+#+end_src
+
 #+BEGIN_SRC emacs-lisp
   (use-package symon
     :config
-    (setq symon-delay 20)
-    (symon-mode))
+    (symon-mode)
+    (advice-add 'symon--display-update
+                :around 'symon--display-update-modify))
 #+END_SRC
 
 ** Profile
@@ -538,11 +548,20 @@ doesn't require any additional setup. bounding as official recommendation.
 
 ** flymake
 
+#+begin_src emacs-lisp
+  (defhydra hydra-flymake ()
+    ("j" flymake-goto-diagnostic "goto-diagnostic")
+    ("s" flymake-show-diagnostic "show-diagnostic")
+    ("]" flymake-goto-next-error "next-error")
+    ("[" flymake-goto-prev-error "prev-error")
+    ("q" nil nil))
+#+end_src
+
 #+BEGIN_SRC emacs-lisp
   (use-package flymake
     :bind (:map flymake-mode-map
-                ("C-c [" . flymake-goto-prev-error)
-                ("C-c ]" . flymake-goto-next-error))
+                ("C-c [" . hydra-flymake/flymake-goto-prev-error)
+                ("C-c ]" . hydra-flymake/flymake-goto-next-error))
     :config
     (defun flymake--transform-mode-line-format (ret)
       "Change the output of `flymake--mode-line-format'."
@@ -551,13 +570,6 @@ doesn't require any additional setup. bounding as official recommendation.
     (advice-add #'flymake--mode-line-format
                 :filter-return #'flymake--transform-mode-line-format))
 #+END_SRC
-
-** =flycheck=
-
- #+begin_src emacs-lisp
-   (use-package let-alist)
-   (use-package flycheck)
- #+end_src
 
 ** =magit=
 
@@ -632,7 +644,6 @@ project root (if I'm not in a "real" project).
     ("C-c p" . projectile-command-map)
     :config
     (setq frame-title-format '((:eval (projectile-project-name))))
-    (add-to-list 'projectile-project-root-files-bottom-up "compile_commands.json")
     (setq projectile-completion-system 'ivy)
     (setq projectile-sort-order 'recently-active)
     (setq projectile-switch-project-action 'projectile-dired)
@@ -712,6 +723,7 @@ Get environment variable in Shell and set them to Emacs
     (setq wg-session-file "~/.emacs.d/.emacs_workgroups")
     (setq wg-prefix-key (kbd "C-c z"))
     (setq wg-workgroups-mode-exit-save-behavior "none")
+    (setq wg-emacs-exit-save-behavior           "none")
     (setq wg-dissociate-buffer-on-kill-buffer nil)
     (bind-keys* ("M-s" . wg-switch-to-workgroup))
     (workgroups-mode 1))
@@ -754,7 +766,8 @@ show function and variable tree in side buffer
 
 * Programming customization
 ** common settings
-*** Editing
+*** editing
+
 I like shallow indentation, but tabs are displayed as 8 characters by default.
 This reduces that.
 
@@ -786,14 +799,14 @@ Use =smartparens=
     (smartparens-global-mode 1))
 #+END_SRC
 
-*** COMMENT ycmd
+*** YCMD
 
 YouCompltedMe setup
 
 Set different path for docker and host
 #+begin_src emacs-lisp
-  (setq MattLu/YCMD-path '("/usr/local/lib/ycmd/ycmd/"
-                           (file-truename "~/.emacs.d/ycmd/ycmd/")))
+  (setq MattLu/YCMD-path '("/usr/local/lib/ycmd/"
+                           (file-truename "~/.emacs.d/ycmd/")))
   (defun MattLu/YCMD-get-path (path-list)
     ;; get ycmd build path
     ;; this dirctiry should contain the excutable server and config file.
@@ -819,9 +832,9 @@ The main part
       (when ycmd-path
         (set-variable 'ycmd-server-command
                       `("python3" "-u"
-                        ,ycmd-path))
+                        ,(concat ycmd-path "ycmd/")))
         (set-variable 'ycmd-global-config
-                      (concat ycmd-path ".ycm_extra_conf.py")))))
+                      (concat ycmd-path "examples/.ycm_extra_conf.py")))))
 
   (defun MattLu/company-mode-c-mode-hook ()
     (set (make-local-variable 'company-backends)
@@ -841,7 +854,33 @@ The main part
      ((c-mode c++-mode) . MattLu/company-mode-c-mode-hook)))
 #+END_SRC
 
-*** COMMENT eglot
+*** eglot LSP and more
+
+#+begin_src emacs-lisp
+  (defhydra hydra-eglot (:idle 1.0)
+    "
+     eglot^^           ^Navigation^       ^config^       ^flymake^
+     ----------------------------------------------------------------
+     _a_ code action  _d_eclaration      _c_ reconnect   _]_ next error
+     _r_emame         _i_mplementation   _k_ shutdown    _[_ prev error
+     _f_ormat         _t_ypeDefinition   _g_ didChange   _j_ goto diagnostic
+     _q_uit           ^ ^                ^ ^             _s_how diagnostic
+     "
+    ("f" eglot-format :color blue)
+    ("r" eglot-rename :color blue)
+    ("a" eglot-code-actions :color blue)
+    ("k" eglot-shutdown)
+    ("c" eglot-reconnect :color blue)
+    ("g" eglot-signal-didChangeConfiguration :color blue)
+    ("d" eglot-find-declaration)
+    ("i" eglot-find-implementation)
+    ("t" eglot-find-typeDefinition)
+    ("j" flymake-goto-diagnostic)
+    ("s" flymake-show-diagnostic)
+    ("]" flymake-goto-next-error)
+    ("[" flymake-goto-prev-error)
+    ("q" nil nil))
+#+end_src
 
 LSP client
 #+BEGIN_SRC emacs-lisp
@@ -850,21 +889,30 @@ LSP client
     (eglot eglot-ensure)
     :bind (:map eglot-mode-map
                 ("C-c u" . eglot-format)
-                ("C-c h" . eglot-help-at-point))
+                ("C-c h" . hydra-eglot/body))
     :config
     (setq eglot-stay-out-of '(company))
     (add-to-list 'eglot-server-programs '((c++-mode c-mode) "clangd"))
     (setq eglot-events-buffer-size 200)
-    (setq eglot-autoreconnect 1)
+    (setq eglot-autoreconnect t)
     (setq eglot-autoshutdown t)
     (setq eglot-connect-timeout 10)
     (setq eglot-sync-connect nil)
     (add-to-list 'eglot-ignored-server-capabilites
                  :documentHighlightProvider)
     :hook
-    ((c-mode c++-mode python-mode) ;;sh-mode typescript-mode
+    ((c-mode c++-mode python-mode sh-mode typescript-mode)
      . eglot-ensure))
 #+END_SRC
+
+clang-tidy
+#+begin_src emacs-lisp
+  ;; (use-package flycheck-clang-tidy
+  ;;   :after flycheck
+  ;;   :hook
+  ;;   (((c-mode c++-mode) . flycheck-mode)
+  ;;    ((c-mode c++-mode) . flycheck-clang-tidy-setup)))
+#+end_src
 
 *** Tags
 
@@ -989,16 +1037,6 @@ Emacs has a minor mode called hs-minor-mode that allows users to fold and hide b
      :hook (prog-mode . symbol-overlay-mode))
  #+END_SRC
 
-*** COMMENT Google Test
-
-For running Google Tests from a given buffer
-
-#+BEGIN_SRC emacs-lisp
-  (use-package gtest-mode
-    :load-path "~/.emacs.d/gtest-mode"
-    :after cc-mode)
-#+END_SRC
-
 *** COMMENT Tree-sitter
 
 using tree-sitter to manage Parser
@@ -1008,12 +1046,43 @@ using tree-sitter to manage Parser
   (global-tree-sitter-mode)
 #+end_src
 
-** COMMENT C++
+** C++
 
 use modern cpp font lock to get better semantic highlight
+
 #+BEGIN_SRC emacs-lisp
   (use-package modern-cpp-font-lock
     :hook (c++-mode . modern-c++-font-lock-mode))
+#+END_SRC
+
+clang-format
+OVERVIEW: A tool to format C/C++/Java/JavaScript/Objective-C/Protobuf/C# code.
+#+begin_src emacs-lisp
+  (defun MattLu/clang-format (&optional beg end)
+    (interactive
+     (and (region-active-p) (list (region-beginning) (region-end))))
+    (if (and beg end)
+        (clang-format beg end)
+      (clang-format-buffer)))
+
+  (defun MattLu/clang-format-key ()
+    (define-key (current-local-map) [remap eglot-format] 'MattLu/clang-format)
+    (local-set-key (kbd "C-c u") 'MattLu/clang-format))
+
+  (use-package clang-format
+    :custom
+    (clang-format-style "llvm")
+    :hook ((c-mode c++-mode java-mode js-mode) .
+           MattLu/clang-format-key))
+#+end_src
+
+Google Test
+For running Google Tests from a given buffer
+
+#+BEGIN_SRC emacs-lisp
+  (use-package gtest-mode
+    :load-path "~/.emacs.d/third_party/danielmartin-gtest"
+    :after cc-mode)
 #+END_SRC
 
 ** COMMENT Coq
@@ -1130,16 +1199,16 @@ documentation.
   (use-package eldoc
     :config
     (add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
-    (setq eldoc-idle-delay 2))
+    (setq eldoc-idle-delay 1))
 #+END_SRC
 
 I also like using flycheck-package to ensure that my Elisp packages are correctly formatted.
 
 #+BEGIN_SRC emacs-lisp
-  (use-package flycheck-package)
-
-  (eval-after-load 'flycheck
-    '(flycheck-package-setup))
+  (use-package flycheck-package
+    :after flycheck
+    :config
+    (flycheck-package-setup))
 #+END_SRC
 
 ** scheme
@@ -1159,13 +1228,9 @@ I also like using flycheck-package to ensure that my Elisp packages are correctl
     (venv-initialize-eshell) ;; if you want eshell support
     (setq venv-location '("~/venvPy/py3/"
                           "~/python/ufw/"))
-
-    (cond ((and (eq system-type 'gnu/linux)
-                (file-directory-p "~/python/ufw/"))
-           (venv-workon "ufw"))
-          ((and (eq system-type 'darwin)
-                (file-directory-p "~/venvPy/py3/"))
-           (venv-workon "py3"))))
+    (let ((venv-py (MattLu/YCMD-get-path venv-location)))
+      (when venv-py
+        (venv-workon (car (last (split-string venv-py "\/") 2))))))
 #+END_SRC
 
 Set ipython as interpreter
@@ -1269,17 +1334,17 @@ Use =web-mode= with embedded Ruby files, regular HTML, and PHP.
 These are syntax highlighting files for the Emacs and XEmacs editors.
 #+begin_src emacs-lisp
   (use-package llvm-mode
-    :load-path "~/.emacs.d/llvm-mode+")
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
 #+begin_src emacs-lisp
   (use-package tablegen-mode
-    :load-path "~/.emacs.d/llvm-mode+")
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
 #+begin_src emacs-lisp
   (use-package mlir-mode
-    :load-path "~/.emacs.d/llvm-mode+")
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
 * Org
@@ -1383,7 +1448,6 @@ Hit =C-c g= to quickly open up my todo list.
     (interactive)
    ;; (MattLu/copy-tasks-from-inbox)
     (find-file org-gtd-file)
-    (flycheck-mode -1)
     (end-of-buffer))
 
   (global-set-key (kbd "C-c g") 'open-gtd-file)
