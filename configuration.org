@@ -799,7 +799,7 @@ Use =smartparens=
     (smartparens-global-mode 1))
 #+END_SRC
 
-*** COMMENT ycmd
+*** YCMD
 
 YouCompltedMe setup
 
@@ -854,7 +854,6 @@ The main part
      ((c-mode c++-mode) . MattLu/company-mode-c-mode-hook)))
 #+END_SRC
 
-
 *** eglot LSP and more
 
 #+begin_src emacs-lisp
@@ -902,7 +901,7 @@ LSP client
     (add-to-list 'eglot-ignored-server-capabilites
                  :documentHighlightProvider)
     :hook
-    ((c-mode c++-mode python-mode) ;;sh-mode typescript-mode
+    ((c-mode c++-mode python-mode sh-mode typescript-mode)
      . eglot-ensure))
 #+END_SRC
 
@@ -2659,7 +2658,7 @@ warp selected region with punctuate.
        ("`" "`" nil (markdown-mode ruby-mode)))))
 #+END_SRC
 
-** COMMENT Use projectile everywhere
+** Use multiple cursors
 
 Hydra short-keys
 #+begin_src emacs-lisp
