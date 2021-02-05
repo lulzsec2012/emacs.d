@@ -3,6 +3,7 @@
 #+AUTHOR: Lulzsec2012
 #+EMAIL: lulzsec2012@gmail.com
 #+OPTIONS: toc:nil num:nil
+#+STARTUP: overview
 [[https://github.com/hrs/dotfiles][Harry R. Schwartz]]
 * Configure =use-package=
 
@@ -170,10 +171,9 @@ Why not?
 #+END_SRC
 
 ** Load up a theme
-*** personal color preferences
+*** personal preferences
 
  better vertical border and region color
-
 
 #+BEGIN_SRC emacs-lisp
   ;; Set symbol for the border │ or ┃
@@ -189,7 +189,74 @@ Why not?
     (set-frame-parameter (selected-frame) 'alpha value))
 #+end_src
 
-custom face when running in 256-color terminal
+*** theme manager
+
+Those themes are what I like most.
+
+#+begin_src emacs-lisp
+  (use-package solarized-theme
+    :no-require t)
+  (use-package nord-theme
+    :no-require t)
+  (use-package modus-operandi-theme
+    :no-require t)
+  (use-package modus-vivendi-theme
+    :no-require t)
+#+end_src
+
+Theme loading symbols.
+
+#+begin_src emacs-lisp
+  (defvar theme-pool
+    '(nord
+      modus-operandi
+      modus-vivendi
+      solarized-light
+      solarized-dark))
+
+  (defvar MattLu/choosing-theme 'nord)
+#+end_src
+
+#+begin_src emacs-lisp
+  (defun MattLu/themes-toggle ()
+    "Toggle between themes defined in theme-pool."
+    (interactive)
+    (let* ((current-theme (car custom-enabled-themes))
+           (index (cl-position current-theme theme-pool)))
+      (if index
+          (setq MattLu/choosing-theme
+                (nth (% (+ 1 index) (length theme-pool)) theme-pool))
+        (setq MattLu/choosing-theme 'nord))
+      (disable-theme current-theme)
+      (load-theme MattLu/choosing-theme t)))
+#+end_src
+
+Using solarized theme on MacOS.
+
+#+BEGIN_SRC emacs-lisp
+  (defun MattLu/apply-solarized-theme ()
+    (setq solarized-scale-org-headlines nil)
+    (transparency 98)
+    (load-theme 'solarized-light t))
+#+END_SRC
+
+#+begin_src emacs-lisp
+  (if (display-graphic-p)
+      (MattLu/apply-solarized-theme)
+    (load-theme MattLu/choosing-theme t))
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+  (if (daemonp)
+      (add-hook 'after-make-frame-functions
+                (lambda (frame)
+                  (with-selected-frame frame
+                    (load-theme MattLu/choosing-theme t)))))
+
+#+END_SRC
+
+Custom face when running in 256-color terminal
+
 #+begin_src emacs-lisp
   (defun MattLu/load-custom-face-el ()
     (if (eq 256 (display-color-cells))
@@ -202,55 +269,6 @@ custom face when running in 256-color terminal
                       frame (MattLu/load-custom-face-el))))
     (MattLu/load-custom-face-el))
 #+end_src
-
-*** solarized-theme
-I like the solarized-dark theme. I prefer keeping all the characters in the same
-side and font, though.
-
-#+BEGIN_SRC emacs-lisp
-  (defun MattLu/apply-solarized-theme ()
-    (setq solarized-scale-org-headlines nil)
-    (transparency 98)
-    (load-theme 'solarized-light t))
-#+END_SRC
-
-If this code is being evaluated by =emacs --daemon=, ensure that each subsequent
-frame is themed appropriately.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package solarized-theme
-    :if (display-graphic-p)
-    :config
-    (if (daemonp)
-        (add-hook 'after-make-frame-functions
-                  (lambda (frame)
-                      (MattLu/apply-solarized-theme)))
-      (MattLu/apply-solarized-theme)))
-#+END_SRC
-
-*** nord theme
-I'm currently using the "nord" theme. I've got a scenic wallpaper, so just a
-hint of transparency looks lovely and isn't distracting or hard to read.
-
-#+BEGIN_SRC emacs-lisp
-  (defun MattLu/apply-nord-theme ()
-    "Apply the `nord' theme and make frames just slightly transparent."
-    (load-theme 'nord t))
-#+END_SRC
-
-If this code is being evaluated by =emacs --daemon=, ensure that each subsequent
-frame is themed appropriately.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package nord-theme
-    :if (not (display-graphic-p))
-    :config
-    (if (daemonp)
-        (add-hook 'after-make-frame-functions
-                  (lambda (frame)
-                    (with-selected-frame frame (MattLu/apply-nord-theme))))
-      (MattLu/apply-nord-theme)))
-#+END_SRC
 
 ** Configure =powerline=
 
@@ -387,8 +405,11 @@ programming.
     :config
     (setq highlight-indent-guides-method 'character)
     (setq highlight-indent-guides-responsive 'top)
-    (setq highlight-indent-guides-auto-enabled nil))
-    ;; (setq highlight-indent-guides-delay 0.1)
+    (setq highlight-indent-guides-auto-enabled nil)
+    (when (= (display-color-cells) 16777216)
+      (set-face-background 'highlight-indent-guides-odd-face "darkgray")
+      (set-face-background 'highlight-indent-guides-even-face "dimgray")
+      (set-face-foreground 'highlight-indent-guides-character-face "dimgray")))
 #+END_SRC
 
 ** display system Information
@@ -397,7 +418,8 @@ programming.
   (defun symon--display-update-modify (orig-fun &rest args)
     "symon step aside other message"
     (if (current-message)
-        (when (string-match-p "\\(MEM:+.*CPU:+.*RX:+.*TX:+.*\\|Quit\\)" (current-message))
+        (when (string-match-p "\\(MEM:+.*CPU:+.*RX:+.*TX:+.*\\|Quit\\)"
+                              (current-message))
           (apply orig-fun args))
     (apply orig-fun args)))
 #+end_src
@@ -465,12 +487,6 @@ Use =company-mode= everywhere.
                              company-oddmuse)))
 #+end_src
 
-#+begin_src emacs-lisp
-  (use-package company-statistics
-    :config
-    (add-hook 'after-init-hook 'company-statistics-mode))
-#+end_src
-
 Set TAB for complete cycle
 
 #+begin_src emacs-lisp
@@ -485,45 +501,24 @@ Set TAB for complete cycle
        (define-key company-active-map (kbd "M-v") 'company-previous-page)))
 #+end_src
 
-** smart-jump
+** COMMENT smart-jump
 
 This packages tries to smartly go to definition leveraging several methods to do so.
 If one method fails, this package will go on to the next one,
-eventually falling back to =dumb-jump=.
 
 #+begin_src emacs-lisp
   (use-package smart-jump
-    :custom
-    (smart-jump-default-mode-list
-     '(cc-mode ;; `java-mode`, `c-mode`, `c++-mode`, `objc-mode`
-       eglot
-       elisp-mode
-       erlang-mode
-       haskell-mode
-       lisp-mode
-       ruby-mode
-       rust-mode
-       scheme
-       swift-mode))
+    :after xref
     :config
     (smart-jump-setup-default-registers)
     (smart-jump-register :modes '(c-mode c++-mode python-mode)
-                         :jump-fn 'ymcd-goto
-                         :refs-fn 'ycmd-goto-references
-                         :should-jump (lambda ()
-                                        (bound-and-true-p ycmd-mode))
-                         :heuristic 'point
-                         :async 2000
-                         :order 1)
-
-    (smart-jump-register :modes '(c-mode c++-mode python-mode)
-                         :jump-fn 'ggtags-find-tag-dwim
-                         :pop-fn 'ggtags-prev-mark
-                         :refs-fn 'ggtags-find-reference
+                         :jump-fn 'xref-find-definitions
+                         :pop-fn 'xref-pop-marker-stack
+                         :refs-fn 'xref-find-references
                          :should-jump t
-                         :heuristic 'point
-                         :async 3000
-                         :order 0))
+                         :heuristic 'error
+                         :async nil
+                         :order 1))
 #+end_src
 
 ** =dumb-jump=
@@ -533,17 +528,13 @@ doesn't require any additional setup. bounding as official recommendation.
 
 #+begin_src emacs-lisp
   (use-package dumb-jump
-    :bind
-    (("M-g o" . dumb-jump-go-other-window)
-     ("M-g j" . dumb-jump-go)
-     ("M-g b" . dumb-jump-back)
-     ("M-g i" . dumb-jump-go-prompt)
-     ("M-g x" . dumb-jump-go-prefer-external)
-     ("M-g z" . dumb-jump-go-prefer-external-other-window))
-
-    :config
-    (setq dumb-jump-force-searcher 'rg)
-    (setq dumb-jump-selector 'ivy))
+    :commands (dumb-jump-xref-activate)
+    :custom
+    (dumb-jump-quiet t)
+    (dumb-jump-force-searcher 'rg)
+    (dumb-jump-selector 'popup)
+    :init
+    (add-hook 'xref-backend-functions #'dumb-jump-xref-activate))
 #+end_src
 
 ** flymake
@@ -589,16 +580,7 @@ I use =magit= to handle version control. It's lovely, but I tweak a few things:
     :config
     (use-package with-editor)
     (setq magit-push-always-verify nil)
-    (setq git-commit-summary-max-length 50)
-    (add-hook 'git-commit-mode-hook 'turn-on-flyspell))
-#+end_src
-
-I've been playing around with the newly-released =forge= for managing GitHub PRs
-and issues. Seems slick so far.
-
-#+begin_src emacs-lisp
-  ;; (use-package ghub)
-  ;; (use-package forge)
+    (setq git-commit-summary-max-length 50))
 #+end_src
 
 I'm also partial to =git-timemachine=, which lets you quickly page through the
@@ -644,7 +626,7 @@ project root (if I'm not in a "real" project).
     ("C-c p" . projectile-command-map)
     :config
     (setq frame-title-format '((:eval (projectile-project-name))))
-    (setq projectile-completion-system 'ivy)
+    ;; (setq projectile-completion-system 'ivy)
     (setq projectile-sort-order 'recently-active)
     (setq projectile-switch-project-action 'projectile-dired)
     (setq projectile-require-project-root nil)
@@ -658,7 +640,9 @@ project root (if I'm not in a "real" project).
 I like tree-based undo management. I only rarely need it, but when I do, oh boy.
 
 #+begin_src emacs-lisp
-  (use-package undo-tree)
+  (use-package undo-tree
+    :config
+    (turn-on-undo-tree-mode))
 #+end_src
 
 ** =GDB=
@@ -666,7 +650,13 @@ I like tree-based undo management. I only rarely need it, but when I do, oh boy.
 using Realgud to debug source code
 
 #+BEGIN_SRC emacs-lisp
-  (use-package realgud)
+  ;; diable company mode when realgud running
+  (use-package realgud
+    :hook
+    (realgud-track-mode . (lambda ()
+                            (if realgud-track-mode
+                                (company-mode -1)
+                              (company-mode t)))))
 #+END_SRC
 
 ** Shell config
@@ -689,6 +679,12 @@ Add shell completion
 #+BEGIN_SRC emacs-lisp
   (use-package bash-completion
     :config (bash-completion-setup))
+
+  (defun toggle-enable-bash-completion ()
+    (interactive)
+    (if bash-completion-enabled
+        (setq bash-completion-enabled nil)
+      (setq bash-completion-enabled t)))
 #+END_SRC
 
 use company instead of ivy which would invoke minibuffer
@@ -718,14 +714,21 @@ Get environment variable in Shell and set them to Emacs
 
 #+BEGIN_SRC emacs-lisp
   (use-package workgroups2
+    :custom
+    (wg-session-load-on-start nil)
+    (wg-session-file "~/.emacs.d/.emacs_workgroups")
+    (wg-prefix-key (kbd "C-c z"))
+    (wg-workgroups-mode-exit-save-behavior 'none)
+    (wg-emacs-exit-save-behavior           'none)
+    ;; eglot LSP server bugfix
+    (wg-dissociate-buffer-on-kill-buffer nil)
+    ;; this does not work
+    (wg-mode-line-display-on nil)
     :config
-    (setq wg-session-load-on-start nil)
-    (setq wg-session-file "~/.emacs.d/.emacs_workgroups")
-    (setq wg-prefix-key (kbd "C-c z"))
-    (setq wg-workgroups-mode-exit-save-behavior "none")
-    (setq wg-emacs-exit-save-behavior           "none")
-    (setq wg-dissociate-buffer-on-kill-buffer nil)
     (bind-keys* ("M-s" . wg-switch-to-workgroup))
+    ;; override defined in workgroups2, suppress the error.
+    (defun wg-change-modeline ()
+      nil)
     (workgroups-mode 1))
 #+END_SRC
 
@@ -763,6 +766,65 @@ show function and variable tree in side buffer
     :config
     (setq imenu-list-focus-after-activation t))
 #+END_SRC
+
+** ELF
+
+read elf symbols
+
+#+begin_src emacs-lisp
+  (use-package elf-mode
+    :mode "\\.\\([ao]\\|so\\)$")
+#+end_src
+
+#+begin_src emacs-lisp
+  (use-package demangle-mode
+    :config
+    (advice-add 'elf-mode :after 'demangle-mode))
+#+end_src
+
+** UML
+
+bugfix https://github.com/skuro/plantuml-mode/pull/128
+
+#+begin_src emacs-lisp
+  (defun MattLu/hex-encode-string (ascii-string)
+    (let ((res nil))
+      (dotimes (i (length ascii-string) (apply #'concat (reverse res)))
+        (let ((ascii-char (substring ascii-string i  (+ i 1))))
+          (push (format "%02x" (string-to-char ascii-char)) res)))))
+
+  (defun MattLu/hex-decode-string (hex-string)
+    (let ((res nil))
+      (dotimes (i (/ (length hex-string) 2) (apply #'concat (reverse res)))
+        (let ((hex-byte (substring hex-string (* 2 i) (* 2 (+ i 1)))))
+          (push (format "%c" (string-to-number hex-byte 16)) res)))))
+
+  (setq MattLu/deflate-compress-command "echo -n \"%s\" | gzip -cf9")
+
+  (defun MattLu/encode_plantuml (string)
+    (shell-command-to-string
+     (format MattLu/deflate-compress-command string)))
+
+  (defun MattLu/plantuml-server-encode-url (string)
+    (let* ((coding-system (or buffer-file-coding-system
+                              "utf8"))
+           (encoded-string (MattLu/hex-encode-string (encode-coding-string string coding-system))))
+      (concat plantuml-server-url "/" plantuml-output-type "/~h" encoded-string)))
+#+end_src
+
+#+begin_src emacs-lisp
+  (use-package plantuml-mode
+    :mode "\\.plantuml$"
+    :custom
+    (plantuml-exec-mode 'server)
+    (plantuml-server-url "https://www.plantuml.com/plantuml")
+    (plantuml-output-type "txt")
+    :config
+    (defun plantuml-server-encode-url (string)
+      (MattLu/plantuml-server-encode-url string))
+    (add-to-list
+     'org-src-lang-modes '("plantuml" . plantuml)))
+#+end_src
 
 * Programming customization
 ** common settings
@@ -863,10 +925,10 @@ The main part
      ----------------------------------------------------------------
      _a_ code action  _d_eclaration      _c_ reconnect   _]_ next error
      _r_emame         _i_mplementation   _k_ shutdown    _[_ prev error
-     _f_ormat         _t_ypeDefinition   _g_ didChange   _j_ goto diagnostic
+     _\\_ format       _t_ypeDefinition   _g_ didChange   _j_ goto diagnostic
      _q_uit           ^ ^                ^ ^             _s_how diagnostic
      "
-    ("f" eglot-format :color blue)
+    ("\\" eglot-format :color blue)
     ("r" eglot-rename :color blue)
     ("a" eglot-code-actions :color blue)
     ("k" eglot-shutdown)
@@ -882,19 +944,36 @@ The main part
     ("q" nil nil))
 #+end_src
 
-LSP client
+Cleanup function, clangd generate much .pch files, ans consume lots of space.
+
+#+begin_src emacs-lisp
+  (defun MattLu/clangd-cleanup ()
+    (interactive)
+    (mapc (lambda (x) (dired-delete-file x 'always))
+          (directory-files "/tmp/" t "\\(.+\\.pch\\)\\|\\(symbolizer-+.+\\)")))
+
+  (defun MattLu/lsp-auto-cleanup ()
+    (if (eglot-managed-p)
+        (setq-local clangd-cleanup--timer-objects
+                    (run-with-timer 0 7200 'MattLu/clangd-cleanup))
+      (cancel-timer clangd-cleanup--timer-objects)))
+#+end_src
+
+elogt
+Emacs Polyglot: an Emacs LSP client that stays out of your way.
+
 #+BEGIN_SRC emacs-lisp
   (use-package eglot
+    :if (executable-find "clangd")
     :commands
     (eglot eglot-ensure)
     :bind (:map eglot-mode-map
-                ("C-c u" . eglot-format)
+                ("C-M-\\" . eglot-format)
                 ("C-c h" . hydra-eglot/body))
     :config
     (setq eglot-stay-out-of '(company))
-    (add-to-list 'eglot-server-programs '((c++-mode c-mode) "clangd"))
-    (setq eglot-events-buffer-size 200)
-    (setq eglot-autoreconnect t)
+    (add-to-list 'eglot-server-programs
+                 '((c++-mode c-mode) "clangd" "-background-index=0"))
     (setq eglot-autoshutdown t)
     (setq eglot-connect-timeout 10)
     (setq eglot-sync-connect nil)
@@ -902,42 +981,19 @@ LSP client
                  :documentHighlightProvider)
     :hook
     ((c-mode c++-mode python-mode sh-mode typescript-mode)
-     . eglot-ensure))
-#+END_SRC
-
-clang-tidy
-#+begin_src emacs-lisp
-  ;; (use-package flycheck-clang-tidy
-  ;;   :after flycheck
-  ;;   :hook
-  ;;   (((c-mode c++-mode) . flycheck-mode)
-  ;;    ((c-mode c++-mode) . flycheck-clang-tidy-setup)))
-#+end_src
-
-*** Tags
-
-#+BEGIN_SRC emacs-lisp
-  (use-package ggtags
-    :config
-    (define-key ggtags-mode-map (kbd "M-.") nil)
-    (define-key ggtags-mode-map (kbd "M-]") nil))
+      . eglot-ensure))
 #+END_SRC
 
 *** Xref jump
 
-Use Ivy as the interface to select from xref candidates.
+Use minibuffer as the interface to select from xref candidates.
 
 #+BEGIN_SRC emacs-lisp
-  (use-package ivy-xref
-    :init
-    ;; xref initialization is different in Emacs 27 - there are two different
-    ;; variables which can be set rather than just one
-    (when (>= emacs-major-version 27)
-      (setq xref-show-definitions-function #'ivy-xref-show-defs))
-    ;; Necessary in Emacs <27. In Emacs 27 it will affect all xref-based
-    ;; commands other than xref-find-definitions (e.g. project-find-regexp)
-    ;; as well
-    (setq xref-show-xrefs-function #'ivy-xref-show-xrefs))
+  (use-package xref
+    :commands (xref--show-defs-minibuffer)
+    :custom
+    (xref-show-definitions-function #'xref--show-defs-minibuffer)
+    (xref-show-xrefs-function #'xref--show-defs-minibuffer))
 #+END_SRC
 
 *** Terminal
@@ -992,7 +1048,7 @@ Hydra short-keys
      _d_ hide block    _a_ show block              _p_revious line
      _l_ hide level
 
-     _SPC_ cancel
+     _SPC_ cancel _q_ cancel
      "
     ("s" hs-show-all)
     ("h" hs-hide-all)
@@ -1002,7 +1058,8 @@ Hydra short-keys
     ("l" hs-hide-level)
     ("n" forward-line)
     ("p" (forward-line -1))
-    ("SPC" nil))
+    ("SPC" nil)
+    ("q" nil))
 #+end_src
 
 Emacs has a minor mode called hs-minor-mode that allows users to fold and hide blocks of text
@@ -1014,7 +1071,7 @@ Emacs has a minor mode called hs-minor-mode that allows users to fold and hide b
                     (format " … <%d>"
                             (count-lines (overlay-start ov)
                                          (overlay-end ov)))
-                    'face '(:background "#ff0066" :foreground "color-16")))))
+                    'face '(:background "#ff0066" :foreground "#000000")))))
 
   (use-package hideshow
     :hook (prog-mode . hs-minor-mode)
@@ -1057,6 +1114,7 @@ use modern cpp font lock to get better semantic highlight
 
 clang-format
 OVERVIEW: A tool to format C/C++/Java/JavaScript/Objective-C/Protobuf/C# code.
+
 #+begin_src emacs-lisp
   (defun MattLu/clang-format (&optional beg end)
     (interactive
@@ -1067,11 +1125,12 @@ OVERVIEW: A tool to format C/C++/Java/JavaScript/Objective-C/Protobuf/C# code.
 
   (defun MattLu/clang-format-key ()
     (define-key (current-local-map) [remap eglot-format] 'MattLu/clang-format)
-    (local-set-key (kbd "C-c u") 'MattLu/clang-format))
+    (local-set-key (kbd "C-M-\\") 'MattLu/clang-format))
 
   (use-package clang-format
+    :if (executable-find "clang-format")
     :custom
-    (clang-format-style "llvm")
+    (clang-format-fallback-style "llvm")
     :hook ((c-mode c++-mode java-mode js-mode) .
            MattLu/clang-format-key))
 #+end_src
@@ -1563,10 +1622,11 @@ of an index file (my main todo list), and archive finished tasks in
   (setq org-use-sub-superscripts nil)
   (setq org-todo-keyword-faces
         '(("STRT" . (:foreground "white" :inverse-video t))
-          ("NEXT" . (:foreground "color-45" :weight bold))
+          ("NEXT" . (:foreground "brightcyan" :weight bold))
           ("WAIT" . (:foreground "#889699" :inverse-video t))
           ("CANCELED" . (:foreground "#889699"))))
   (setq org-enforce-todo-dependencies t)
+  (setq org-enforce-todo-checkbox-dependencies t)
   (setq org-deadline-warning-days 7)
 #+END_SRC
 
@@ -2028,36 +2088,12 @@ Include the =minted= package in all of my LaTeX exports.
   (setq org-latex-listings 'minted)
 #+END_SRC
 
-** COMMENT org-caldav
+** COMMENT org-mobile
 
 #+BEGIN_SRC emacs-lisp
-  (use-package org-caldav)
-
-  (defun MattLu/caldav-sync-perso ()
-    (interactive)
-    (let ((org-caldav-inbox (org-file-path "rdv.org"))
-          (org-caldav-calendar-id "personnel")
-          (org-caldav-url "Google")
-          (org-caldav-files nil))
-      (call-interactively 'org-caldav-sync)))
-
-  (defun MattLu/caldav-sync-etalab-perso ()
-    (interactive)
-    (let ((org-caldav-inbox "~/.Org/rdv-etalab.org")
-          (org-caldav-calendar-id "personal")
-          (org-caldav-url "Outlook")
-          (org-caldav-files nil))
-      (call-interactively 'org-caldav-sync)))
-
-  (defun MattLu/etalab-caldav-sync ()
-    (interactive)
-    (MattLu/caldav-sync-etalab-perso))
-
-  (defun bzg-caldav-sync-all ()
-    (interactive)
-    (MattLu/etalab-caldav-sync)
-    (MattLu/caldav-sync-perso))
+  (setq org-mobile-directory )
 #+END_SRC
+
 * Writing thesis
 
  Write raw LaTex document using [[https://www.gnu.org/software/auctex/][auctex]]
@@ -2226,9 +2262,10 @@ composing an email, or authoring a Git commit.
           ispell-extra-args '("--sug-mode=ultra"))
     (add-to-list 'flyspell-delayed-commands 'scroll-down-command)
     (add-to-list 'flyspell-delayed-commands 'scroll-up-command)
+    (dolist (hook prose-mode-hooks)
+      (add-hook hook 'flyspell-mode))
     :hook
-    ((prog-mode . flyspell-prog-mode)
-     (prose-mode-hooks . flyspell-mode)))
+    (prog-mode . flyspell-prog-mode))
 #+END_SRC
 
 ** Wrap paragraphs automatically
@@ -2315,13 +2352,10 @@ Because I can't always use =org=.
 #+begin_src emacs-lisp
   (use-package markdown-mode
     :commands gfm-mode
-
     :mode (("\\.md$" . gfm-mode))
-
     :config
-    (setq markdown-command "pandoc --standalone --mathjax --from=markdown")
-    (custom-set-faces
-     '(markdown-code-face ((t nil)))))
+    (setq markdown-command "pandoc --standalone --mathjax --from=markdown"
+          markdown-fontify-code-blocks-natively t))
 #+end_src
 
 ** Cycle between spacing alternatives
@@ -2357,10 +2391,9 @@ Binding this to =M-SPC= is strictly better than the original binding of
 
     (setq deft-directory "~/.notes"
           deft-recursive t
-          deft-use-filename-as-title t)
-
-    (evil-set-initial-state 'deft-mode 'emacs))
+          deft-use-filename-as-title t))
 #+end_src
+
 * Editing settings
 ** Rectangle Hydra
 
@@ -2508,7 +2541,7 @@ at the correct indentation for Python).
   (setq yas/indent-line nil)
 #+END_SRC
 
-** ivy + counsel + swiper
+** COMMENT ivy + counsel + swiper
 
   ivy configuration
 #+BEGIN_SRC emacs-lisp
@@ -2600,6 +2633,119 @@ but right now I will change ivy.el instead
   (defun ivy-thing-at-point()
     nil)
 #+END_SRC
+
+** selectrum + marginalia + ctrlf + consult
+
+Selectrum is a better solution for incremental narrowing in Emacs, replacing
+Helm, Ivy, and Ido.
+
+#+begin_src emacs-lisp
+  (use-package selectrum
+    :config
+    (selectrum-mode +1)
+    :custom
+    (selectrum-count-style 'current/matches))
+#+end_src
+
+Marginalia are marks or annotations placed at the margin of the page of a book
+or in this case helpful colorful annotations placed at the margin of the
+minibuffer for your completion candidates.
+
+#+begin_src emacs-lisp
+  (use-package marginalia
+    :init
+    ;; Must be in the :init section of use-package such that the mode gets
+    ;; enabled right away. Note that this forces loading the package.
+    (marginalia-mode)
+    :config
+    (setq marginalia-annotators '(marginalia-annotators-heavy)))
+#+end_src
+
+CTRLF (pronounced "control F") is an intuitive and efficient solution for
+single-buffer text search in Emacs, replacing packages such as Isearch, Swiper,
+and helm-swoop.
+
+#+begin_src emacs-lisp
+  (use-package ctrlf
+    :config
+    (ctrlf-mode +1))
+#+end_src
+
+This package provides various commands based on the Emacs completion function
+completing-read, in particular a more advanced buffer switching command
+consult-buffer and a Swiper-like search command consult-line.
+
+#+begin_src emacs-lisp
+  (use-package consult
+    :bind (("C-x M-:" . consult-complex-command)
+           ("C-c h" . consult-history)
+           ("C-x b" . consult-buffer)
+           ("C-x 4 b" . consult-buffer-other-window)
+           ("C-x r x" . consult-register)
+           ("C-x r b" . consult-bookmark)
+           ("M-g g" . consult-goto-line)
+           ("M-g M-g" . consult-goto-line)
+           ("M-g o" . consult-outline)       ;; "M-s o" is a good alternative.
+           ("M-g l" . consult-line)          ;; "M-s l" is a good alternative.
+           ("M-g m" . consult-mark)          ;; I recommend to bind Consult navigation
+           ("M-g k" . consult-global-mark)   ;; commands under the "M-g" prefix.
+           ("M-g r" . consult-ripgrep)      ;; or consult-grep, consult-git-grep
+           ("M-g f" . consult-find)          ;; or consult-locate, my-fdfind
+           ("M-g i" . consult-project-imenu) ;; or consult-imenu
+           ("M-g e" . consult-error)
+           ("M-s m" . consult-multi-occur)
+           ("M-y" . consult-yank-pop)
+           ("<help> a" . consult-apropos))
+    :init
+    (fset 'multi-occur #'consult-multi-occur)
+    :config
+    ;; Optionally configure narrowing key.
+    ;; Both < and C-+ work reasonably well.
+    (setq consult-narrow-key "<") ;; (kbd "C-+")
+    ;; Optionally configure a function which returns the project root directory
+    (autoload 'projectile-project-root "projectile")
+    (setq consult-project-root-function #'projectile-project-root))
+#+end_src
+
+** prescient
+
+   simple but effective sorting and filtering for Emacs.
+
+*** COMMENT ivy
+#+begin_src emacs-lisp
+  (use-package ivy-prescient
+    :config
+    (ivy-prescient-mode +1))
+#+end_src
+
+*** selectrum
+#+begin_src emacs-lisp
+  (use-package selectrum-prescient
+    :config
+    (selectrum-prescient-mode +1))
+#+end_src
+
+*** company
+#+begin_src emacs-lisp
+  (use-package company-prescient
+    :config
+    (company-prescient-mode +1))
+#+end_src
+
+** crux
+
+A Collection of Ridiculously Useful eXtensions for Emacs. crux bundles many
+useful interactive commands to enhance your overall Emacs experience.
+
+#+begin_src emacs-lisp
+  (use-package crux
+    :bind
+    (([remap kill-whole-line] . crux-kill-whole-line)
+     ("C-c d" . crux-duplicate-current-line-or-region)
+     ("C-c r" . crux-rename-file-and-buffer)
+     ("C-k" . crux-kill-and-join-forward)
+     ("C-x M-c" . crux-capitalize-region)))
+#+end_src
 
 ** Switch and rebalance windows when splitting
 
@@ -2719,7 +2865,6 @@ Use ace-jump-mode to quick jump to words or char
     ("C-'"   . avy-goto-char-timer)
     ("M-g f" . avy-goto-line)
     :config
-    (setq avy-all-windows nil)
     (setq avy-background t)
     (setq avy-timeout-seconds 0.3)
     (unbind-key "C-'" org-mode-map)) ;; jump in current frame
@@ -2812,10 +2957,11 @@ maximum memory allotted to Emacs.
   (add-to-list 'warning-suppress-types '(undo discard-info))
 #+END_SRC
 
-** COMMENT Increase a bit garbage collection threshold
+** Increase a bit garbage collection threshold
 
+200MB
 #+BEGIN_SRC emacs-lisp
-  (setq gc-cons-threshold 1600000)
+  (setq gc-cons-threshold 200000000)
 #+END_SRC
 
 ** using too-long-lines-mode to discard extremely long lines
@@ -2869,6 +3015,13 @@ Hydra short-keys
     (define-key back-button-mode-map (kbd "C-x SPC") nil))
 #+end_src
 
+Pcache required by persistent-soft required by back-botton, but it freeze emacs
+when quit.
+
+#+begin_src emacs-lisp
+  (remove-hook 'kill-emacs-hook 'pcache-kill-emacs-hook)
+#+end_src
+
 ** Ediff
 
 I like Ediff's control panel to show in the same frame, even on
@@ -2876,6 +3029,7 @@ graphical environments.
 
 #+BEGIN_SRC emacs-lisp
   (setq ediff-window-setup-function 'ediff-setup-windows-plain)
+  (setq ediff-split-window-function 'split-window-horizontally)
 #+END_SRC
 
 Hydra ediff, more function with less key bindings
@@ -3051,6 +3205,17 @@ Hydra ediff, more function with less key bindings
     (setq langtool-http-server-host "langtool-server"
           langtool-http-server-port 8010)
     (setq langtool-default-language "en-US"))
+#+end_src
+
+** easy-kill
+
+Provide commands easy-kill and easy-mark to let users kill or mark things
+easily.
+
+#+begin_src emacs-lisp
+  (use-package easy-kill
+    :config
+    (global-set-key [remap kill-ring-save] 'easy-kill))
 #+end_src
 
 * Set custom keybindings
