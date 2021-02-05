@@ -188,8 +188,8 @@ insert the text where point is, not where the mouse cursor is."
 (defun sensible-defaults/bind-home-and-end-keys ()
   "Make <home> and <end> move point to the beginning and end of
 the line, respectively."
-  ;;(global-set-key (kbd "<home>") 'move-beginning-of-line)
-  ;;(global-set-key (kbd "<end>") 'move-end-of-line)
+  (global-set-key (kbd "<home>") 'move-beginning-of-line)
+  (global-set-key (kbd "<end>") 'move-end-of-line)
   )
 
 (defun sensible-defaults/bind-keys-to-change-text-size ()
