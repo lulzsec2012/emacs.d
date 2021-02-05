@@ -2665,12 +2665,6 @@ CTRLF (pronounced "control F") is an intuitive and efficient solution for
 single-buffer text search in Emacs, replacing packages such as Isearch, Swiper,
 and helm-swoop.
 
-#+begin_src emacs-lisp
-  (use-package ctrlf
-    :config
-    (ctrlf-mode +1))
-#+end_src
-
 This package provides various commands based on the Emacs completion function
 completing-read, in particular a more advanced buffer switching command
 consult-buffer and a Swiper-like search command consult-line.
