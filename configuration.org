@@ -612,10 +612,6 @@ When I visit a project with =projectile-switch-project=, the default action is
 to search for a file in that project. I'd rather just open up the top-level
 directory of the project in =dired= and find (or create) new files from there.
 
-I'd like to /always/ be able to recursively fuzzy-search for files, not just
-when I'm in a Projectile-defined project. I use the current directory as a
-project root (if I'm not in a "real" project).
-
 #+begin_src emacs-lisp
   (use-package projectile
     :init
@@ -634,6 +630,10 @@ project root (if I'm not in a "real" project).
     (setq projectile-mode-line-function
           '(lambda () (format "[%s]" (projectile-project-name)))))
 #+end_src
+
+I'd like to /always/ be able to recursively fuzzy-search for files, not just
+when I'm in a Projectile-defined project. I use the current directory as a
+project root (if I'm not in a "real" project).
 
 ** =undo-tree=
 
@@ -2541,7 +2541,7 @@ at the correct indentation for Python).
   (setq yas/indent-line nil)
 #+END_SRC
 
-** COMMENT ivy + counsel + swiper
+** ivy + counsel + swiper
 
   ivy configuration
 #+BEGIN_SRC emacs-lisp
@@ -2634,7 +2634,7 @@ but right now I will change ivy.el instead
     nil)
 #+END_SRC
 
-** selectrum + marginalia + ctrlf + consult
+** COMMENT selectrum + marginalia + ctrlf + consult
 
 Selectrum is a better solution for incremental narrowing in Emacs, replacing
 Helm, Ivy, and Ido.
