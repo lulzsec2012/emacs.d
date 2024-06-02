@@ -3,11 +3,12 @@
 (when emacs_config_version
   (require 'package)
   (setq package-archives
-	'(("gnu"   . "https://elpa.emacs-china.org/gnu/")
-	  ("melpa" . "https://elpa.emacs-china.org/melpa/")
-	  ("org" . "https://elpa.emacs-china.org/org/")
-	  ("ublt" . "https://elpa.ubolonton.org/packages/")
-	  ))
+      '(("melpa" . "https://www.mirrorservice.org/sites/melpa.org/packages/")
+        ("melpa-stable" . "https://www.mirrorservice.org/sites/stable.melpa.org/packages/")
+        ("gnu"   . "https://elpa.gnu.org/packages/")
+        ("gnu-dev"   . "https://elpa.gnu.org/devel/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ))
   (package-initialize)
 (prefer-coding-system 'utf-8)
 (set-default-coding-systems 'utf-8)

@@ -325,6 +325,7 @@ This is used by `comint-watch-for-password-prompt'."
 ;;(load (concat ENV_EMACS_DIR "color-set-dark1.el") t nil t)
 ;
 ;; display line number
+(require 'linum)
 (global-linum-mode t)
 
 (fset 'yes-or-no-p 'y-or-n-p)

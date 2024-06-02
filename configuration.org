@@ -159,7 +159,7 @@ I don't usually use the menu or scroll bar, and they take up useful space.
 #+BEGIN_SRC emacs-lisp
   (tool-bar-mode 0)
   (menu-bar-mode 0)
-  (scroll-bar-mode -1)
+  ;;(scroll-bar-mode -1)
 #+END_SRC
 
 ** Use fancy lambdas
@@ -198,10 +198,10 @@ Those themes are what I like most.
     :no-require t)
   (use-package nord-theme
     :no-require t)
-  (use-package modus-operandi-theme
-    :no-require t)
-  (use-package modus-vivendi-theme
-    :no-require t)
+  ;;(use-package modus-operandi-theme
+    ;;:no-require t)
+  ;;(use-package modus-vivendi-theme
+    ;;:no-require t)
 #+end_src
 
 Theme loading symbols.
@@ -209,8 +209,8 @@ Theme loading symbols.
 #+begin_src emacs-lisp
   (defvar theme-pool
     '(nord
-      modus-operandi
-      modus-vivendi
+      ;;modus-operandi
+      ;;modus-vivendi
       solarized-light
       solarized-dark))
 
@@ -425,11 +425,11 @@ programming.
 #+end_src
 
 #+BEGIN_SRC emacs-lisp
-  (use-package symon
-    :config
-    (symon-mode)
-    (advice-add 'symon--display-update
-                :around 'symon--display-update-modify))
+;  (use-package symon
+;    :config
+;    (symon-mode)
+;    (advice-add 'symon--display-update
+;                :around 'symon--display-update-modify))
 #+END_SRC
 
 ** Profile
@@ -3237,4 +3237,10 @@ Remap when working in terminal Emacs.
 #+BEGIN_SRC emacs-lisp
   (global-unset-key (kbd "C-x 5 1"))
   (local-unset-key (kbd "C-x 5 1"))
+#+END_SRC
+
+#+BEGIN_SRC mlir-mode
+  (use-package mlir-mode
+    :mode "\\.pdll$" "\\.mlir$"
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+END_SRC

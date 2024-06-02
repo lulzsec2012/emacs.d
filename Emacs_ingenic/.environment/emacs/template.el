@@ -1349,7 +1349,7 @@ argument SYNTAX, see `template-comment-syntax'."
       (setq str (car (pop alist)))
       (when str
 	(setq i (length str))
-	(while (>= (decf i) 0)
+	(while (>= (cl-decf i) 0)
 	  ;; (pushnew (aref str i) chars), but requires cl at runtime:
 	  (or (memq (setq c (aref str i)) chars) (push c chars)))))
     (concat "\\("
