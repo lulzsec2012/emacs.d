@@ -450,8 +450,7 @@ Note that this overrides the default font-related keybindings from
     (my/reset-font-size))
 #+END_SRC
 
-
-** COMMENT Highlight the current line
+** Highlight the current line
 
 =global-hl-line-mode= softly highlights the background color of the line
 containing point. It makes it a bit easier to find point, and it's useful when
@@ -490,7 +489,7 @@ programming.
     ("C-x C-g" . git-gutter))
 #+END_SRC
 
-** COMMENT Display line number
+** Display line number
 
 #+BEGIN_SRC emacs-lisp
   (setq-default display-line-numbers-width 4)
@@ -531,11 +530,11 @@ programming.
 #+end_src
 
 #+BEGIN_SRC emacs-lisp
-;  (use-package symon
-;    :config
-;    (symon-mode)
-;    (advice-add 'symon--display-update
-;                :around 'symon--display-update-modify))
+  (use-package symon
+    :config
+    (symon-mode)
+    (advice-add 'symon--display-update
+                :around 'symon--display-update-modify))
 #+END_SRC
 
 * Hydra
@@ -579,7 +578,7 @@ Install and configure [[https://github.com/Wilfred/deadgrep][deadgrep]] as an in
 #+begin_src emacs-lisp
   (use-package deadgrep
     :bind
-    ("C-x s" . deadgrep))
+    ("C-c v" . deadgrep))
 
   (use-package wgrep-deadgrep)
 #+end_src
@@ -1012,7 +1011,7 @@ outputs.
   (use-package vterm
     :init
     (put 'vterm-environment 'safe-local-variable #'listp)
-    :bind ("C-c v" . vterm)
+    :bind ("C-c t" . vterm)
     :custom
     (vterm-kill-buffer-on-exit nil)
     (vterm-always-compile-module t)
@@ -2019,18 +2018,14 @@ using priority to organize my life
              '(org-agenda-skip-entry-if 'nottodo 'done))
             (org-agenda-sorting-strategy '(timestamp-up))))
 
-          ("
-" . "Task and rendez-vous for today")
-          ("
-
-" "Travail (tout)" agenda "Tasks and rdv for today"
+          ("" . "Task and rendez-vous for today")
+          ("" "Travail (tout)" agenda "Tasks and rdv for today"
            ((org-agenda-span 1)
             (org-agenda-files (org-file-path '("gtd.org" "matt.org")))
             (org-deadline-warning-days 3)
             (org-agenda-sorting-strategy
              '(todo-state-up time-up priority-down))))
-          ("
- " "Libre (tout)" agenda "Tasks and rdv for today"
+          (" " "Libre (tout)" agenda "Tasks and rdv for today"
            ((org-agenda-span 1)
             (org-agenda-files (org-file-path '("libre.org")))
             (org-deadline-warning-days 3)
@@ -3162,7 +3157,7 @@ warp selected region with punctuate.
        ("`" "`" nil (markdown-mode ruby-mode)))))
 #+END_SRC
 
-** COMMENT Use projectile everywhere
+** Use multiple cursors
 
 Hydra short-keys
 #+begin_src emacs-lisp
@@ -3378,6 +3373,7 @@ maximum memory allotted to Emacs.
 #+END_SRC
 
 ** jump back and forth
+
 Hydra short-keys
 #+begin_src emacs-lisp
   (defhydra hydra-back-and-forth ()
@@ -3748,10 +3744,4 @@ get current buffer's name
                   (lambda () (interactive)
                     (message buffer-file-name)
                     (kill-new buffer-file-name)))
-#+END_SRC
-
-#+BEGIN_SRC mlir-mode
-  (use-package mlir-mode
-    :mode "\\.pdll$" "\\.mlir$"
-    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+END_SRC

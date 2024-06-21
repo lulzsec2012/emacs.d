@@ -284,7 +284,7 @@ This is used by `comint-watch-for-password-prompt'."
 (global-set-key [mouse-3] 'mouse-buffer-menu)
 
 ;; Common MSWIN like keys
-(global-set-key "\C-o" 'counsel-find-file)
+(global-set-key "\C-o" 'find-file)
 ;;(global-set-key "\C-o" 'helm-find-files)
 (global-set-key "\C-s" 'save-buffer)
 ;;(global-set-key "\C-p" 'pwd)
@@ -325,8 +325,8 @@ This is used by `comint-watch-for-password-prompt'."
 ;;(load (concat ENV_EMACS_DIR "color-set-dark1.el") t nil t)
 ;
 ;; display line number
-(require 'linum)
-(global-linum-mode t)
+;;(require 'linum)
+;;(global-linum-mode t)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 
@@ -357,7 +357,7 @@ This is used by `comint-watch-for-password-prompt'."
   (find-file (concat default-directory filename))
   (goto-line (string-to-number (substring str (+ numN 1)))))
 
-(global-set-key [C-o] 'counsel-find-file)
+(global-set-key [C-o] 'find-file)
 ;;(global-set-key [C-o] '_find-file)
 (defun _find-file(str)
   "open a file and goto specific line. [Ctrl+o;F5]"
