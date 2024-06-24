@@ -1540,30 +1540,25 @@ sed,awk,grep, and friends for JSON data.
       (setq-default gptel-proxy
                     (format "socks5h://%s" my/socks-proxy)))
 
-    (defun +get-api-key (path)
-      (string-trim-right (f-read-text path)))
-
     (gptel-make-openai "ChatGPT"
-      :key (+get-api-key "~/.ssh/gpt-api-key")
+      :key 'gptel-api-key
       :stream t
       :models '("gpt-4o"))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
-        :key (+get-api-key "~/.ssh/gemini-api-key")
+        :key 'gptel-api-key
         :stream t
         :models '("gemini-1.5-pro-latest")))
 
     (defvar gptel--anthropic
       (gptel-make-anthropic "Claude"
-        :key (+get-api-key "~/.ssh/claude-api-key")
+        :key 'gptel-api-key
         :stream t
         :models '("claude-3-5-sonnet-20240620")))
 
     (setq-default gptel-backend gptel--gemini
                   gptel-model "gemini-1.5-pro-latest")
-    :init
-    (require 'f)
     :custom
     (gptel-use-curl t)
     (gptel-playback t))
@@ -2463,10 +2458,47 @@ words in the text of the visible portion of the buffer.
     :hook (emacs-startup . global-jinx-mode)
     :config
     :bind (:map jinx-mode-map
-           ("M-$" . jinx-correct)
-           ("C-M-c" . jinx-correct)
-           ("C-M-p" . jinx-previous)
-           ("C-M-n" . jinx-next)))
+                ("M-$" . jinx-correct)
+                ("C-M-c" . jinx-correct)
+                ("C-M-p" . jinx-previous)
+                ("C-M-n" . jinx-next)))
+#+end_src
+
+
+*** define-word
+
+A minimalists' Emacs extension to search http://www.bing.com/dict. Support
+English to Chinese and Chinese to English.
+
+#+begin_src emacs-lisp
+  (use-package bing-dict
+    :config
+    ;; from fanyi.el
+    (defun bing-dict-dwim ()
+      "A more dwim version of `bing-dict'.
+  No prompt if the region is active or `thing-at-point' returns
+  non-nil."
+      (interactive)
+      (if-let ((word (if (use-region-p)
+                         (buffer-substring-no-properties (region-beginning) (region-end))
+                       (thing-at-point 'word t))))
+          (progn
+            (bing-dict-brief word))
+        (call-interactively #'bing-dict-brief)))
+    :bind ("C-c d" . 'bing-dict-dwim))
+#+end_src
+
+fanyi.el is a simple yet powerful multi-dictionaries interface for Emacs,
+currently it includes:
+海词
+有道同义词, Unofficial API
+etymonline
+Longman.
+
+#+begin_src emacs-lisp
+  (use-package fanyi
+    :config
+    :bind ("C-c D" . 'fanyi-dwim2))
 #+end_src
 
 ** Wrap paragraphs automatically
@@ -2498,48 +2530,6 @@ Use the [[https://elpa.gnu.org/packages/orgalist.html][=orgalist=]] package for 
     (add-hook 'git-commit-mode-hook 'orgalist-mode)
     (add-hook 'markdown-mode-hook 'orgalist-mode)
     (add-hook 'message-mode-hook 'orgalist-mode))
-#+end_src
-
-** COMMENT Linting prose
-
-I use [[http://proselint.com/][proselint]] to check my prose for common errors. This creates a flycheck
-checker that runs proselint in text buffers and displays my errors.
-
-#+begin_src emacs-lisp
-  (use-package flycheck
-    :config
-    (flycheck-def-executable-var proselint "proselint")
-    (flycheck-define-command-checker 'proselint
-                                     "A linter for prose."
-                                     :command '("proselint" source-inplace)
-                                     :error-patterns
-                                     '((warning line-start (file-name) ":" line ":" column ": "
-                                                (id (one-or-more (not (any " "))))
-                                                (message (one-or-more not-newline)
-                                                         (zero-or-more "\n" (any " ") (one-or-more not-newline)))
-                                                line-end))
-                                     :modes prose-modes
-                                     :next-checkers 'nil
-                                     :standard-input 'nil
-                                     :working-directory 'nil)
-    (add-to-list 'flycheck-checkers 'proselint))
-#+end_src
-
-Use flycheck in the appropriate buffers:
-
-#+begin_src emacs-lisp
-  (dolist (hook prose-mode-hooks)
-    (add-hook hook 'flycheck-mode))
-#+end_src
-
-** COMMENT Look up words in a thesaurus
-
-Hitting =C-c s= searches for synonyms for the word at point.
-
-#+begin_src emacs-lisp
-  (use-package powerthesaurus
-    :bind
-    ("C-c s" . powerthesaurus-lookup-word-dwim))
 #+end_src
 
 ** Editing with Markdown
@@ -2892,16 +2882,6 @@ consult-buffer and a Swiper-like search command consult-line.
     )
 #+end_src
 
-consult-dir: insert paths into minibuffer prompts in Emacs
-
-#+begin_src emacs-lisp
-  (use-package consult-dir
-    :bind (("C-x C-d" . consult-dir)
-           :map vertico-map
-           ("C-x C-d" . consult-dir)
-           ("C-x C-j" . consult-dir-jump-file)))
-#+end_src
-
 *** embark
 
 #+begin_src emacs-lisp
@@ -3067,12 +3047,17 @@ useful interactive commands to enhance your overall Emacs experience.
 
 #+begin_src emacs-lisp
   (use-package crux
+    :after xterm ;; xterm will redefine input-decode-map
     :bind
-    (([remap kill-whole-line] . crux-kill-whole-line)
-     ("C-c d" . crux-duplicate-current-line-or-region)
-     ("C-c r" . crux-rename-file-and-buffer)
+    (("C-x d" . crux-duplicate-current-line-or-region)
+     ("C-x x r" . crux-rename-file-and-buffer)
      ("C-k" . crux-kill-and-join-forward)
-     ("C-x M-c" . crux-capitalize-region)))
+     ("C-S-k" . crux-kill-whole-line)
+     ("C-<S-k>" . crux-kill-whole-line)
+     ("C-x M-c" . crux-capitalize-region))
+    :init
+    ;; 75 is the ASCII code for 'K', and 6 indicates Ctrl+Shift modifier.
+    (define-key input-decode-map "\e[75;6~" [C-S-k]))
 #+end_src
 
 ** Switch and rebalance windows when splitting
@@ -3363,17 +3348,14 @@ Hydra short-keys
 #+begin_src emacs-lisp
   (use-package back-button
     :bind (:map back-button-mode-map
-                ;;("C-<right>" . hydra-back-and-forth/back-button-local-forward)
-                ;;("C-<left>" . hydra-back-and-forth/back-button-local-backward)
-                ;;("C-<up>" . hydra-back-and-forth/back-button-global-backward)
-                ;;("C-<down>" . hydra-back-and-forth/back-button-global-forward)
-                ("<C-f7>" . hydra-back-and-forth/back-button-global-forward))
+                ("C-x <right>" . hydra-back-and-forth/back-button-local-forward)
+                ("C-x <left>" . hydra-back-and-forth/back-button-local-backward)
+                ("C-x <up>" . hydra-back-and-forth/back-button-global-backward)
+                ("C-x <down>" . hydra-back-and-forth/back-button-global-forward))
     :init
     (back-button-mode 1)
     (define-key back-button-mode-map (kbd "C-x <C-left>") nil)
     (define-key back-button-mode-map (kbd "C-x <C-right>") nil)
-    (define-key back-button-mode-map (kbd "C-x <left>") nil)
-    (define-key back-button-mode-map (kbd "C-x <right>") nil)
     (define-key back-button-mode-map (kbd "C-x C-SPC") nil)
     (define-key back-button-mode-map (kbd "C-x SPC") nil))
 #+end_src
@@ -3434,14 +3416,7 @@ Hydra ediff, more function with less key bindings
 
 ** =dired=
 
-Use =c-x d= to enter current folder.
-
-#+begin_src emacs-lisp
-  (defun my/dired ()
-    (interactive)
-    (dired nil))
-  (global-set-key (kbd "C-x d") 'my/dired)
-#+end_src
+Use =c-x c-j= to enter current folder.
 
  These are the switches that get passed to =ls= when =dired= gets a list of
  files. We're using:
@@ -3609,7 +3584,6 @@ https://youtu.be/51eSeqcaikM
   (setq history-length 25)
   (savehist-mode 1)
   (save-place-mode 1)
-  (setq global-auto-revert-non-file-buffers t)
 #+end_src
 
 ** I-search
@@ -3689,12 +3663,6 @@ Just a few handy functions.
 
 #+BEGIN_SRC emacs-lisp
   (global-set-key (kbd "M-/") 'hippie-expand)
-#+END_SRC
-
-Remap when working in terminal Emacs.
-
-#+BEGIN_SRC emacs-lisp
-  (define-key input-decode-map "\e[1;2A" [S-up])
 #+END_SRC
 
 #+BEGIN_SRC emacs-lisp
