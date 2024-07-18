@@ -3,8 +3,8 @@
 ;; template
 ;; verilog-mode
 ;; =================================================================
-(defconst ENV_EMACS_DIR "~/.emacs.d/Emacs_ingenic/.environment/emacs/")
-(add-to-list 'load-path ENV_EMACS_DIR)
+;; (defconst ENV_EMACS_DIR "~/.emacs.d/Emacs_ingenic/.environment/emacs/")
+;; (add-to-list 'load-path ENV_EMACS_DIR)
 
 ;; Enable CUA mode
 ;; This maps edit keys to standard Windows keystokes. It requires the
@@ -18,12 +18,12 @@
 
 ;; auto-load template, the global template files in ENV_EMACS_DIR, and set its
 ;; subdir: template the default directory
-(require 'template)
-(template-initialize)
-(setq template-default-directories
-   (cons (concat ENV_EMACS_DIR "template/") template-default-directories))
-(setq	verilog-auto-newline		nil
-	verilog-tab-always-indent 	nil)
+;; (require 'template)
+;; (template-initialize)
+;; (setq template-default-directories
+;;    (cons (concat ENV_EMACS_DIR "template/") template-default-directories))
+;; (setq	verilog-auto-newline		nil
+;; 	verilog-tab-always-indent 	nil)
 
 ;; =================================================================
 ;; Key Binding
