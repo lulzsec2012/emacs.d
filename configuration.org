@@ -233,12 +233,6 @@ Why not?
 Those themes are what I like most.
 
 #+begin_src emacs-lisp
-  (use-package solarized-theme
-    :no-require t)
-  (use-package nord-theme
-    :no-require t)
-  (use-package doom-themes
-    :no-require t)
   (use-package modus-themes
     :no-require t
     :custom
@@ -264,12 +258,6 @@ Theme loading symbols.
       ef-dark
       ef-day
       ef-night
-      ;; doom-xcode
-      ;; doom-monokai-pro
-      ;; doom-one
-      ;; solarized-light
-      ;; solarized-dark
-      ;; nord
       ))
 
   (defvar my/choosing-theme 'modus-vivendi)
@@ -298,18 +286,17 @@ Theme loading symbols.
       (message "change theme to `%s'" my/choosing-theme)))
 #+end_src
 
-Using solarized theme on MacOS.
+Using light theme on MacOS.
 
 #+BEGIN_SRC emacs-lisp
-  (defun my/apply-solarized-theme ()
-    (setq solarized-scale-org-headlines nil)
+  (defun my/apply-light-theme ()
     (transparency 98)
-    (load-theme 'modus-operandi t))
+    (load-theme 'ef-day t))
 #+END_SRC
 
 #+begin_src emacs-lisp
   (if (display-graphic-p)
-      (my/apply-solarized-theme)
+      (my/apply-light-theme)
     (my/load-theme my/choosing-theme))
 #+end_src
 
@@ -355,10 +342,17 @@ Custom face when running in 256-color terminal
     (minions-mode 1))
 #+end_src
 
+#+begin_src emacs-lisp
+  (use-package time
+    :config
+    (display-time)
+    :custom
+    (display-time-default-load-average nil))
+#+end_src
+
 #+BEGIN_SRC emacs-lisp
   (size-indication-mode)
   (column-number-mode)
-  (display-time)
   (setq mode-line-frame-identification " ")
   (setq mode-line-end-spaces "")
 #+END_SRC
@@ -514,6 +508,7 @@ programming.
 
 #+BEGIN_SRC emacs-lisp
   (use-package symon
+    :load-path "~/.emacs.d/symon/"
     :config
     (symon-mode)
     (advice-add 'symon--display-update
@@ -561,7 +556,8 @@ Install and configure [[https://github.com/Wilfred/deadgrep][deadgrep]] as an in
 #+begin_src emacs-lisp
   (use-package deadgrep
     :bind
-    ("C-c s" . deadgrep))
+    ("C-c s" . deadgrep)
+    ("C-x s" . deadgrep))
 
   (use-package wgrep-deadgrep)
 #+end_src
@@ -600,13 +596,13 @@ doesn't require any additional setup. bounding as official recommendation.
 
 #+BEGIN_SRC emacs-lisp
   (use-package flymake
-    :config
-    (defun flymake--transform-mode-line-format (ret)
-      "Change the output of `flymake--mode-line-format'."
-      (setcar (cdr ret) " Φ")
-      ret)
-    (advice-add #'flymake--mode-line-title
-                :filter-return #'flymake--transform-mode-line-format))
+    :pin gnu
+    :init
+    (package-install 'flymake t) ;; install the latest gnu-flymake
+    :custom
+    (flymake-mode-line-lighter "Φ")
+    (flymake-margin-indicator-position 'right-margin)
+    (flymake-autoresize-margins t))
 #+END_SRC
 
 ** =magit=
@@ -804,7 +800,9 @@ read elf symbols
 
 #+begin_src emacs-lisp
   (use-package elf-mode
-    :mode "\\.\\([ao]\\|so\\)$")
+    :demand
+    :config
+    (elf-setup-default))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -828,6 +826,36 @@ read elf symbols
       (setq plantuml-default-exec-mode 'jar))
     (add-to-list
      'org-src-lang-modes '("plantuml" . plantuml)))
+#+end_src
+
+** Tramp
+
+#+begin_src emacs-lisp
+  (setq tramp-remote-shell "/bin/bash")
+  (setq explicit-shell-file-name "/bin/bash")  ;; using bash by default.
+  (setq shell-file-name "/bin/bash")  ;; using bash by default.
+#+end_src
+
+** Gerrit
+
+#+begin_src emacs-lisp
+  (use-package gerrit
+    :custom
+    (gerrit-use-ssl nil)
+    (gerrit-host "gerrit.houmo.ai") ;; is needed for REST API calls
+    :config
+    (setq gerrit-dashboard-query-alist
+          '(("Has draft comments" . "has:draft")
+            ("Work in progress" . "is:open owner:self is:wip")
+            ("Outgoing reviews" . "is:open owner:self -is:wip -is:ignored")
+            ("Incoming reviews" . "is:open -owner:self -is:wip -is:ignored (reviewer:self OR assignee:self)")
+            ("CCed on" . "is:open -is:ignored cc:self")
+            ("toolchain/hmcc" . "project:toolchain/hmcc is:open limit:15")
+            ("Recently closed" . "is:closed -is:ignored (-is:wip OR owner:self) (owner:self OR reviewer:self OR assignee:self OR cc:self) limit:15")))
+
+    (progn
+      (global-set-key (kbd "C-x i") 'gerrit-upload-transient)
+      (global-set-key (kbd "C-x o") 'gerrit-download)))
 #+end_src
 
 * Programming customization
@@ -879,7 +907,6 @@ Use =smartparens=
 
 *** eglot LSP and more
 
-elogt
 Emacs Polyglot: an Emacs LSP client that stays out of your way.
 
 #+begin_src emacs-lisp
@@ -900,7 +927,9 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
 
 #+BEGIN_SRC emacs-lisp
   (use-package eglot
+    :pin gnu
     :init
+    (package-install 'eglot t) ;; install the latest gnu-eglot
     (use-package consult-eglot)
     :commands
     (eglot eglot-ensure)
@@ -915,7 +944,7 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
                 ("C-c e s" . consult-eglot-symbols)
                 ("C-c e i" . eglot-inlay-hints-mode))
     :custom
-    (eglot-autoshutdown t)
+    ;; (eglot-autoshutdown t)
     (eglot-events-buffer-size 0)
     :config
     (my/test-then-add-eglot '(c-or-c++-mode c-mode c++-mode c++-ts-mode c-ts-mode) "clangd")
@@ -990,17 +1019,45 @@ outputs.
 #+end_src
 
 #+begin_src emacs-lisp
-    (use-package vterm
-      :init
-      (put 'vterm-environment 'safe-local-variable #'listp)
-      :bind ("C-c t" . vterm) ;; terminal
-      :custom
-      (vterm-kill-buffer-on-exit nil)
-      (vterm-always-compile-module t)
-      (term-copy-exclude-prompt t)
-      (vterm-buffer-name-string "*vterm %s*")
-      (vterm-keymap-exceptions
-       '("C-c" "C-x" "C-u" "C-g" "C-h" "C-l" "M-x" "M-o" "C-y" "M-y" "M-s")))
+  (use-package vterm
+    :init
+    (put 'vterm-environment 'safe-local-variable #'listp)
+    :bind ("C-c v" . vterm) ;; terminal
+    :custom
+    (vterm-max-scrollback 10000)
+    (vterm-kill-buffer-on-exit nil)
+    (vterm-always-compile-module t)
+    (term-copy-exclude-prompt t)
+    (vterm-buffer-name-string "*vterm %s*")
+    (vterm-keymap-exceptions
+     '("C-c" "C-x" "C-u" "C-g" "C-h" "C-l" "M-x" "M-o" "C-y" "M-y" "M-s")))
+#+end_src
+
+Eat: Emulate A Terminal
+
+#+begin_src emacs-lisp
+  (use-package eat
+    :bind ("C-c t" . eat-new-term)
+    :config
+    (defun eat-new-term ()
+      "Create a new Eat terminal buffer."
+      (interactive)
+      (eat-other-window nil '(4)))
+
+    (defun my/eat-add-compilation-environment ()
+      (hack-dir-local-variables-non-file-buffer)
+      (setq-local process-environment
+                  (append compilation-environment process-environment)))
+    :hook
+    ;; https://codeberg.org/akib/emacs-eat/issues/129
+    (eat-exec . (lambda (&rest _) (eat-line-mode)))
+    (eat-mode . my/eat-add-compilation-environment)
+
+    :custom
+    (eat-enable-auto-line-mode t)
+    (eat-shell-prompt-annotation-failure-margin-indicator "✘")
+    (eat-shell-prompt-annotation-running-margin-indicator "◯ ")
+    (eat-shell-prompt-annotation-success-margin-indicator "✔"))
 #+end_src
 
 *** Fold and unfold code blocks
@@ -1074,15 +1131,15 @@ using tree-sitter to manage Parser
     ;; disable checking the ‘-*-’ line, this will disable loading .dir-locals.el
     ;; (enable-local-variables nil)
     :config
-    (add-to-list 'major-mode-remap-alist
-          '((sh-mode . bash-ts-mode)
-            (javascript-mode . js-ts-mode)
-            (js-json-mode . json-ts-mode)
-            (python-mode . python-ts-mode)
-            (c-or-c++-mode . c++-ts-mode)
-            (c-mode . c-ts-mode)
-            (c++-mode . c++-ts-mode))
-          )
+    (setq major-mode-remap-alist
+          (append major-mode-remap-alist
+                  '((sh-mode . bash-ts-mode)
+                    (javascript-mode . js-ts-mode)
+                    (js-json-mode . json-ts-mode)
+                    (python-mode . python-ts-mode)
+                    (c-or-c++-mode . c++-ts-mode)
+                    (c-mode . c-ts-mode)
+                    (c++-mode . c++-ts-mode))))
     (mapcar #'require '(cmake-ts-mode
                         dockerfile-ts-mode
                         rust-ts-mode
@@ -1102,13 +1159,22 @@ using tree-sitter to manage Parser
     :custom
     (indent-bars-treesit-support t)
     (indent-bars-no-descend-string t)
-    (indent-bars-highlight-current-depth '(:color "white"))
-    (indent-bars-display-on-blank-lines nil)
+    (indent-bars-treesit-scope '((python function_definition class_definition for_statement
+                                         if_statement with_statement while_statement)))
     (indent-bars-treesit-ignore-blank-lines-types '("module"))
-    (indent-bars-treesit-wrap '((python argument_list parameters ; for python, as an example
-                        list list_comprehension
-                        dictionary dictionary_comprehension
-                        parenthesized_expression subscript)))
+    :config
+    (defun my/set-indent-bars-bg-fg ()
+      (setq
+       indent-bars-unspecified-fg-color (face-attribute 'default :foreground)
+       indent-bars-unspecified-bg-color (face-attribute 'default :background)
+       indent-bars-color '(highlight :face-bg t :blend 0.15)
+       indent-bars-highlight-current-depth '(:blend 0.5) ;; pump up the BG blend on current
+       ;; blend=1: blend with BG only
+       indent-bars-color-by-depth '(:regexp "outline-\\([0-9]+\\)" :blend 1))
+      (indent-bars-reset))
+
+    (my/set-indent-bars-bg-fg)
+
     :hook ((python-base-mode c-ts-base-mode) . indent-bars-mode))
 #+end_src
 
@@ -1193,6 +1259,8 @@ Set ipython as interpreter
 
   (use-package python-black
     :if (executable-find "black")
+    :init
+    (put 'python-black-extra-args 'safe-local-variable #'listp)
     :after python
     :hook
     (python-mode . my/python-format-key)
@@ -1264,21 +1332,11 @@ For running Google Tests from a given buffer
 ** Rust
 
 #+begin_src emacs-lisp
-  (defun my/project-try-cargo-toml (dir)
-    (when-let* ((output
-                 (let ((default-directory dir))
-                   (shell-command-to-string "cargo metadata --no-deps --format-version 1")))
-                (js (ignore-errors (json-read-from-string output)))
-                (found (cdr (assq 'workspace_root js))))
-      (cons 'transient found)))
-  (add-hook 'project-find-functions 'my/project-try-cargo-toml nil nil)
-#+end_src
-
-#+begin_src emacs-lisp
   (use-package rust-playground
     :bind
     ("C-x r p" . rust-playground)
     :config
+    (add-to-list 'project-vc-extra-root-markers "Cargo.toml")
     (defun rust-playground ()
       "Run playground for Rust language in a new buffer."
       (interactive)
@@ -1389,7 +1447,7 @@ documentation.
   (use-package eldoc
     :config
     (add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
-    (setq eldoc-idle-delay 1))
+    (setq eldoc-idle-delay 10))
 #+END_SRC
 
 ** scheme
@@ -1523,7 +1581,7 @@ sed,awk,grep, and friends for JSON data.
 #+begin_src emacs-lisp
   (defun my/internet-up-p (&optional host)
     (= 0 (call-process "ping" nil nil nil "-c" "1" "-W" "1"
-                       (if host host "www.google.com"))))
+                       (if host host "www.wikipedia.org"))))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -1560,6 +1618,7 @@ sed,awk,grep, and friends for JSON data.
     (setq-default gptel-backend gptel--gemini
                   gptel-model "gemini-1.5-pro-latest")
     :custom
+    (gptel-curl-file-size-threshold 2000000)
     (gptel-use-curl t)
     (gptel-playback t))
 #+end_src
@@ -2457,13 +2516,27 @@ words in the text of the visible portion of the buffer.
     :if (eq system-type 'gnu/linux)
     :hook (emacs-startup . global-jinx-mode)
     :config
+    ;; (length (jinx--get-overlays (point-min) (point-max) nil))
+    ;; (length (jinx--get-overlays (point-min) (point-max) t))
+    ;; (length (jinx--force-overlays (point-min) (point-max) :check t))
+    (setq jinx-camel-modes
+          (append jinx-camel-modes
+                  '(cc-ts-mode c-mode c-or-c++-mode c++-mode c++-ts-mode c-ts-mode)))
+
+    (defun jinx--mode-line-format ()
+      "updata the spelling check error informatin."
+      (format "J{%d}" (length (jinx--get-overlays (window-start) (window-end) nil))))
+
+    (add-to-list 'mode-line-misc-info
+                 '(jinx-mode
+                   (:eval (jinx--mode-line-format))) t)
+
     :bind (:map jinx-mode-map
                 ("M-$" . jinx-correct)
                 ("C-M-c" . jinx-correct)
                 ("C-M-p" . jinx-previous)
                 ("C-M-n" . jinx-next)))
 #+end_src
-
 
 *** define-word
 
@@ -2997,6 +3070,7 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
   ;; Add extensions
   (use-package cape
     :init
+    (global-corfu-mode)
     ;; Add `completion-at-point-functions', used by `completion-at-point'.
     (add-to-list 'completion-at-point-functions #'cape-file)
     (add-to-list 'completion-at-point-functions #'cape-dabbrev)
@@ -3076,8 +3150,9 @@ makes that automatic.
   (defun my/split-window-right-and-switch ()
     "Split the window vertically, then switch to the new pane."
     (interactive)
-    (split-window-right)
-    (balance-windows)
+    (let ((total-width (window-total-width)))
+      (split-window-right (floor (* 0.6 total-width))))
+    ;; (balance-windows)
     (other-window 1))
 
   (global-set-key (kbd "C-x 2") 'my/split-window-below-and-switch)
@@ -3285,6 +3360,7 @@ while still keeping them within arm’s reach.
             "^\\*socks5-proxy-.*\\*$"
             "\\*Async Shell Command\\*"
             "^\\*vterm.*\\*$"   vterm-mode   ;vterm as a popup
+            "^\\*eat*.*$"  eat-mode
             "^\\*TeX Help.*\\*$"  tex-mode
             "^\\*tex-shell.*\\*$"  tex-mode
             compilation-mode))
@@ -3326,7 +3402,7 @@ maximum memory allotted to Emacs.
     :config
     (setq too-long-lines-threshold 5000)
     (set 'too-long-lines-special-buffer-modes
-         '(shell-mode ag-mode inferior-python-mode comint-mode))
+         '(shell-mode ag-mode inferior-python-mode comint-mode compilation-mode))
     (too-long-lines-mode))
 #+END_SRC
 
@@ -3482,6 +3558,7 @@ Use =c-x c-j= to enter current folder.
      ("z" diredp-compress-this-file)
      ("Z" dired-do-compress)
      ("q" nil)
+     ("C-g" nil :color blue)
      ("." nil :color blue))
  #+end_src
 
