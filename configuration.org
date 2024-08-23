@@ -844,6 +844,7 @@ read elf symbols
     (gerrit-use-ssl nil)
     (gerrit-host "gerrit.houmo.ai") ;; is needed for REST API calls
     :config
+    (put 'gerrit-project-to-local-workspace-alist 'safe-local-variable #'listp)
     (setq gerrit-dashboard-query-alist
           '(("Has draft comments" . "has:draft")
             ("Work in progress" . "is:open owner:self is:wip")
@@ -946,6 +947,8 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
     :custom
     ;; (eglot-autoshutdown t)
     (eglot-events-buffer-size 0)
+    (eglot-extend-to-xref t)
+    (eglot-sync-connect nil)
     :config
     (my/test-then-add-eglot '(c-or-c++-mode c-mode c++-mode c++-ts-mode c-ts-mode) "clangd")
     (my/test-then-add-eglot '(python-mode python-ts-mode) "pyright-langserver" "--stdio")
@@ -1055,9 +1058,9 @@ Eat: Emulate A Terminal
 
     :custom
     (eat-enable-auto-line-mode t)
-    (eat-shell-prompt-annotation-failure-margin-indicator "✘")
-    (eat-shell-prompt-annotation-running-margin-indicator "◯ ")
-    (eat-shell-prompt-annotation-success-margin-indicator "✔"))
+    (eat-shell-prompt-annotation-failure-margin-indicator "✘ ")
+    (eat-shell-prompt-annotation-running-margin-indicator "⧗ ")
+    (eat-shell-prompt-annotation-success-margin-indicator "✔ "))
 #+end_src
 
 *** Fold and unfold code blocks
@@ -1221,7 +1224,6 @@ Set ipython as interpreter
     (python-shell-completion-native-enable nil)
     (python-shell-interpreter "ipython")
     (python-shell-interpreter-args "--simple-prompt -i")
-    (py-ipython-command-args "--simple-prompt -i")
     (python-indent-offset 4)
     :hook
     (python-mode . (lambda ()
@@ -1586,7 +1588,12 @@ sed,awk,grep, and friends for JSON data.
 
 #+begin_src emacs-lisp
   (use-package gptel
+    :init
+    (use-package gptel) ;; trigger download gptel
+    ;; Use local patch until upstream includes it.
+    :load-path "~/.emacs.d/gptel"
     :bind (("C-c RET" . gptel-send)
+           ("C-c g" . (lambda () (interactive) (gptel "*GPT*" nil nil t)))
            ("C-c <return>" . gptel-send)
            ("C-c C-<return>" . gptel-menu)
            :map gptel-mode-map
@@ -1617,6 +1624,16 @@ sed,awk,grep, and friends for JSON data.
 
     (setq-default gptel-backend gptel--gemini
                   gptel-model "gemini-1.5-pro-latest")
+
+    (defun my/ediff-cleanup ()
+      (ediff-kill-buffer-carefully "*Ediff Control Panel*")
+      (ediff-kill-buffer-carefully "*ediff-errors*")
+      (ediff-kill-buffer-carefully "*ediff-diff*")
+      (ediff-kill-buffer-carefully "*Ediff Registry*")
+      (ediff-kill-buffer-carefully "*ediff-fine-diff*"))
+
+    (add-hook 'ediff-quit-hook #'my/ediff-cleanup)
+
     :custom
     (gptel-curl-file-size-threshold 2000000)
     (gptel-use-curl t)
@@ -1750,7 +1767,7 @@ Hit =C-c g= to quickly open up my todo list.
     (find-file org-gtd-file)
     (end-of-buffer))
 
-  (global-set-key (kbd "C-c g") 'open-gtd-file)
+  ;; (global-set-key (kbd "C-c g") 'open-gtd-file)
 #+END_SRC
 
 
@@ -1960,7 +1977,7 @@ auto save org file
 
 #+BEGIN_SRC emacs-lisp
   ;; Set headlines to STRT when clocking in
-  (add-hook 'org-clock-in-hook (lambda() (org-todo "STRT")))
+  (add-hook 'org-clock-in-hook (lambda () (org-todo "STRT")))
   ;; (setq org-agenda-diary-file "/home/guerry/org/rdv.org")
   (setq org-agenda-dim-blocked-tasks nil)
   (setq org-log-into-drawer "LOGBOOK")
@@ -3104,7 +3121,7 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (corfu-terminal-position-right-margin 1))
 #+end_src
 
-*** COMMENT show diagnose information
+*** show diagnose information
 
 #+begin_src emacs-lisp
   (use-package flymake-popon
