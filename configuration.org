@@ -254,21 +254,35 @@ Theme loading symbols.
       modus-vivendi-deuteranopia
       modus-operandi-tritanopia
       modus-vivendi-tritanopia
-      ef-light
+      ef-melissa-light
       ef-dark
       ef-day
       ef-night
       ))
 
-  (defvar my/choosing-theme 'modus-vivendi)
+  (defvar my/choosing-theme 'ef-melissa-light)
+#+end_src
+
+#+begin_src emacs-lisp
+  (defun my/ef-themes-custom-faces ()
+    (ef-themes-with-colors
+      (if (equal "ef-melissa-light" (symbol-name (car custom-enabled-themes)))
+          (custom-set-faces
+           `(font-lock-comment-face ((,c :inherit italic :foreground "grey"))))
+        (custom-set-faces
+         `(font-lock-comment-face ((,c :inherit italic :foreground ,fg-dim)))))
+      ))
+
+  ;; Using the hook lets our changes persist when we use the commands
+  ;; `ef-themes-toggle', `ef-themes-select', and `ef-themes-load-random'.
+  (add-hook 'ef-themes-post-load-hook #'my/ef-themes-custom-faces)
 #+end_src
 
 #+begin_src emacs-lisp
   (defun my/load-theme (theme)
     (face-remap-add-relative 'vertical-border '(:inherit default))
     (load-theme theme t)
-    (when (cl-search "doom" (symbol-name  theme))
-      (set-face-background 'vertical-border "bg")))
+    (my/ef-themes-custom-faces))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -476,24 +490,6 @@ programming.
   (add-hook 'conf-mode-hook (lambda () (display-line-numbers-mode t)))
 #+END_SRC
 
-** COMMENT Using highlight indentation
-
-#+BEGIN_SRC emacs-lisp
-  (use-package highlight-indent-guides
-    :hook (prog-mode . (lambda ()
-                         (unless (derived-mode-p 'json-ts-mode)
-                           (highlight-indent-guides-mode))))
-    :custom
-    (highlight-indent-guides-method 'character)
-    (highlight-indent-guides-responsive 'top)
-    (highlight-indent-guides-delay 1)
-    :config
-    (when (= (display-color-cells) 16777216)
-      (set-face-background 'highlight-indent-guides-odd-face "darkgray")
-      (set-face-background 'highlight-indent-guides-even-face "dimgray")
-      (set-face-foreground 'highlight-indent-guides-character-face "dimgray")))
-#+END_SRC
-
 ** display system Information
 
 #+begin_src emacs-lisp
@@ -508,7 +504,7 @@ programming.
 
 #+BEGIN_SRC emacs-lisp
   (use-package symon
-    :load-path "~/.emacs.d/symon/"
+    :load-path "~/.emacs.d/third_party/symon/"
     :config
     (symon-mode)
     (advice-add 'symon--display-update
@@ -534,7 +530,7 @@ project is to be configured, built and tested using CMake and CTest.
 #+begin_src emacs-lisp
   (use-package project-cmake
     :if (eq system-type 'gnu/linux)
-    :load-path "~/.emacs.d/project-cmake/"
+    :load-path "~/.emacs.d/third_party/project-cmake/"
     :custom
     (project-vc-merge-submodules nil)
     (project-vc-extra-root-markers '(".dir-locals.el"))
@@ -660,16 +656,6 @@ I like tree-based undo management. I only rarely need it, but when I do, oh boy.
     (undo-tree-visualizer-timestamps t))
 #+end_src
 
-** =GDB=
-
-using Realgud to debug source code
-
-#+BEGIN_SRC emacs-lisp
-  (use-package realgud
-    :custom
-    (realgud:pdb-command-name "python -m pdb"))
-#+END_SRC
-
 ** Shell config
 
 Indent with 2 spaces.
@@ -720,10 +706,14 @@ Get environment variable in Shell and set them to Emacs
 
 ** Workgroups another way to organize workspace
 
+*** Winner-mode
+
 #+BEGIN_SRC emacs-lisp
   (when (fboundp 'winner-mode)
     (winner-mode 1))
 #+END_SRC
+
+*** COMMENT WorkGroups
 
 #+BEGIN_SRC emacs-lisp
   (use-package workgroups2
@@ -808,7 +798,13 @@ read elf symbols
 #+begin_src emacs-lisp
   (use-package demangle-mode
     :config
-    (advice-add 'elf-mode :after 'demangle-mode))
+    (advice-add 'elf-mode :after 'demangle-mode)
+    (add-to-list 'demangle-languages
+                 '("LLVM-IR"
+                   "\\(?:_Z\\|\\(?:_GLOBAL_[._$][DI]_\\)\\)[_$[:alnum:]]+"
+                   ("llvm-cxxfilt" "--no-strip-underscore")))
+    :hook
+    (llvm-mode . demangle-mode))
 #+end_src
 
 ** UML
@@ -985,6 +981,9 @@ Dape is a debug adapter client for Emacs.
     (dape-buffer-window-arrangement 'right) ;; Info buffers to the right
     (dape-breakpoint-margin-string "●") ;; ◯
     :config
+    ;; (setq dape-debug t)
+    (put 'dape-command 'safe-local-variable #'listp)
+    (put 'dape-adapter-dir 'safe-local-variable #'stringp)
     (put 'dape--overlay-arrow-position
          'overlay-arrow-string   ;; ▶ →
          (propertize "▶" 'face 'dape-stack-trace-face)))
@@ -1040,7 +1039,8 @@ Eat: Emulate A Terminal
 
 #+begin_src emacs-lisp
   (use-package eat
-    :bind ("C-c t" . eat-new-term)
+    :bind (("C-c t" . eat-new-term)
+           (:map eat-line-mode-map ("C-x C-f" . find-file-at-point)))
     :config
     (defun eat-new-term ()
       "Create a new Eat terminal buffer."
@@ -1117,8 +1117,7 @@ Emacs has a minor mode called hs-minor-mode that allows users to fold and hide b
             ("M-p" . symbol-overlay-jump-prev)
             ("M-N" . symbol-overlay-switch-forward)
             ("M-P" . symbol-overlay-switch-backward)
-            ("M-C" . symbol-overlay-remove-all))
-     :hook (prog-mode . symbol-overlay-mode))
+            ("M-C" . symbol-overlay-remove-all)))
  #+END_SRC
 
 *** Tree-sitter
@@ -1149,14 +1148,14 @@ using tree-sitter to manage Parser
                         yaml-ts-mode))
     :mode
     ("\\.h\\.inc\\'" . c++-ts-mode)
-    ("\\.cpp\\.inc\\'" . c++-ts-mode))
+    ("\\.cpp\\.inc\\'" . c++-ts-mode)
+    ("\\.hu$" . c++-ts-mode))
 #+end_src
 
 *** Indent Highlight
 
 #+begin_src emacs-lisp
   (use-package indent-bars
-    :load-path "~/.emacs.d/indent-bars"
     :config
     (require 'indent-bars-ts)
     :custom
@@ -1179,6 +1178,17 @@ using tree-sitter to manage Parser
     (my/set-indent-bars-bg-fg)
 
     :hook ((python-base-mode c-ts-base-mode) . indent-bars-mode))
+#+end_src
+
+*** Visual-regexp
+
+#+begin_src emacs-lisp
+  (use-package visual-regexp
+    :bind
+    ("C-c r" . vr/replace)
+    ("C-c q" . vr/query-replace)
+    ;; if you use multiple-cursors, this is for you:
+    ("C-c m" . vr/mc-mark))
 #+end_src
 
 ** Python
@@ -1448,8 +1458,7 @@ documentation.
 #+BEGIN_SRC emacs-lisp
   (use-package eldoc
     :config
-    (add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
-    (setq eldoc-idle-delay 10))
+    (add-hook 'emacs-lisp-mode-hook 'eldoc-mode))
 #+END_SRC
 
 ** scheme
@@ -1529,9 +1538,17 @@ These are syntax highlighting files for the Emacs and XEmacs editors.
 #+begin_src emacs-lisp
   (use-package tablegen-mode
     :mode "\\.td$"
-    :load-path "~/.emacs.d/third_party/llvm-mode+"
     :hook
-    (tablegen-mode . display-line-numbers-mode))
+    (tablegen-mode . turn-on-font-lock)
+    (tablegen-mode . git-gutter--turn-on)
+    (tablegen-mode . display-line-numbers--turn-on)
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
+#+end_src
+
+#+begin_src emacs-lisp
+  (use-package llvm-mir-mode
+    :mode "\\.mir$"
+    :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
 #+begin_src emacs-lisp
@@ -1565,7 +1582,7 @@ sed,awk,grep, and friends for JSON data.
 
 #+begin_src emacs-lisp
   (use-package jq-mode
-    :bind ("C-c C-j" . jq-interactively)
+    :bind ("C-c j" . jq-interactively)
     :mode
     ("\\.jq$" . jq-mode))
 #+end_src
@@ -1588,10 +1605,7 @@ sed,awk,grep, and friends for JSON data.
 
 #+begin_src emacs-lisp
   (use-package gptel
-    :init
-    (use-package gptel) ;; trigger download gptel
-    ;; Use local patch until upstream includes it.
-    :load-path "~/.emacs.d/gptel"
+    :defer nil
     :bind (("C-c RET" . gptel-send)
            ("C-c g" . (lambda () (interactive) (gptel "*GPT*" nil nil t)))
            ("C-c <return>" . gptel-send)
@@ -1605,10 +1619,11 @@ sed,awk,grep, and friends for JSON data.
       (setq-default gptel-proxy
                     (format "socks5h://%s" my/socks-proxy)))
 
-    (gptel-make-openai "ChatGPT"
-      :key 'gptel-api-key
-      :stream t
-      :models '("gpt-4o"))
+    (setq gptel--openai
+          (gptel-make-openai "ChatGPT"
+            :key 'gptel-api-key
+            :stream t
+            :models '("chatgpt-4o-latest" "gpt-4o")))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
@@ -1620,10 +1635,9 @@ sed,awk,grep, and friends for JSON data.
       (gptel-make-anthropic "Claude"
         :key 'gptel-api-key
         :stream t
-        :models '("claude-3-5-sonnet-20240620")))
+        :models '("claude-3-5-sonnet-latest")))
 
-    (setq-default gptel-backend gptel--gemini
-                  gptel-model "gemini-1.5-pro-latest")
+    (setq-default gptel-backend gptel--gemini)
 
     (defun my/ediff-cleanup ()
       (ediff-kill-buffer-carefully "*Ediff Control Panel*")
@@ -1636,8 +1650,79 @@ sed,awk,grep, and friends for JSON data.
 
     :custom
     (gptel-curl-file-size-threshold 2000000)
+    (gptel-model 'gpt-4o-mini)
     (gptel-use-curl t)
     (gptel-playback t))
+#+end_src
+
+This defines a code refactor function for Embark.
+The default gptel Ediff is incompatible with Eglot due to bugs in Eglot's
+track-changes feature. We need to use the original buffer as the source of the
+diff, not the cloned one.
+#+begin_src emacs-lisp
+  (defvar my/gptel--ediff-restore nil
+    "Function to restore window configuration after ediff.")
+
+  (defvar my/gptel--ediff-restore-cwc nil
+    "Variable to record window configuration before ediff.")
+
+  (defun my/get-full-line-region (buffer)
+    ;; enlarge the region to hold full lines
+    (with-current-buffer buffer
+      (save-excursion
+        (let* ((reg-beg  (region-beginning))
+               (reg-end  (region-end))
+               (full-beg (progn (goto-char reg-beg)
+                                (line-beginning-position)))
+               (full-end (if (eq (char-before reg-end) ?\n)
+                             reg-end
+                           (goto-char reg-end)
+                           (line-beginning-position 2)))) ; include the newline char
+          (cons full-beg full-end)))))
+
+  (defun my/gpt-refacotr (gpt-backend rewrite-message prompt)
+    (let ((gptel-backend gpt-backend)
+          (gptel-model (car (gptel-backend-models gpt-backend))))
+
+      (setq my/gptel--ediff-restore-cwc (current-window-configuration))
+      (setq my/gptel--ediff-restore
+            (lambda ()
+              (when (window-configuration-p my/gptel--ediff-restore-cwc)
+                (set-window-configuration my/gptel--ediff-restore-cwc))
+              (ediff-kill-buffer-carefully "*gptel-rewrite-Region.B-*")
+              (remove-hook 'ediff-quit-hook my/gptel--ediff-restore)))
+      (message "Waiting for %s response..." gptel-model)
+      (gptel-request
+          prompt
+        :system rewrite-message
+        :context (my/get-full-line-region (current-buffer))
+        :callback
+        (lambda (response info)
+          (if (not response)
+              (message "ChatGPT response error: %s" (plist-get info :status))
+            (let* ((gptel-buffer (plist-get info :buffer))
+                   (gptel-bounds (plist-get info :context))
+                   (buffer-mode
+                    (buffer-local-value 'major-mode gptel-buffer)))
+              (pcase-let ((`(,new-buf ,new-beg ,new-end)
+                           (with-current-buffer (get-buffer-create "*gptel-rewrite-Region.B-*")
+                             (let ((inhibit-read-only t))
+                               (erase-buffer)
+                               (funcall buffer-mode)
+                               (insert response)
+                               (goto-char (point-min))
+                               (list (current-buffer) (point-min) (point-max))))))
+                (require 'ediff)
+                (add-hook 'ediff-quit-hook my/gptel--ediff-restore)
+                (apply
+                 #'ediff-regions-internal
+                 gptel-buffer
+                 (car gptel-bounds) (cdr gptel-bounds)
+                 new-buf new-beg new-end
+                 nil
+                 ;; (list 'ediff-regions-wordwise 'word-wise nil)
+                 (list 'ediff-regions-wordwise nil nil)
+                 ))))))))
 #+end_src
 
 ** BuildBot
@@ -1652,6 +1737,36 @@ sed,awk,grep, and friends for JSON data.
   (use-package graphviz-dot-mode
     :config
     (setq graphviz-dot-indent-width 4))
+#+end_src
+
+** Compiler Explorer
+
+There are numerous plugins available that function similarly to Godbolt, each
+ with its own unique features and differences. You can explore Godbolt itself at
+ the following link:
+ [https://godbolt.org](https://godbolt.org).
+
+#+begin_src emacs-lisp
+  (use-package compiler-explorer)
+#+end_src
+
+
+A supercharged implementation of the godbolt compiler-explorer for Emacs.
+
+#+begin_src emacs-lisp
+  (use-package rmsbolt)
+#+end_src
+
+
+Beardbolt shows assembly output for given source code file, making it easy to
+see what the compiler is doing.
+
+#+begin_src emacs-lisp
+  (use-package beardbolt
+    :if (eq system-type 'gnu/linux)
+    :load-path "~/.emacs.d/third_party/beardbolt/"
+    :config
+    (add-to-list 'beardbolt-languages '(c++-ts-mode beardbolt--c/c++-setup :base-cmd "g++" :language "c++")))
 #+end_src
 
 * Org
@@ -1672,6 +1787,8 @@ Including org-tempo restores the <s-style easy-templates that were deprecated in
                                  ox-latex
                                  ox-odt
                                  org-gnus))))
+    (define-key org-mode-map (kbd "C-j") nil)
+    (define-key org-mode-map (kbd "C-c C-j") nil)
     (bind-keys*
      ("C-c l" . org-store-link)
      ("C-c C-l" .  org-insert-link)))
@@ -2550,6 +2667,8 @@ words in the text of the visible portion of the buffer.
 
     :bind (:map jinx-mode-map
                 ("M-$" . jinx-correct)
+                ("M-p" . nil)
+                ("M-n" . nil)
                 ("C-M-c" . jinx-correct)
                 ("C-M-p" . jinx-previous)
                 ("C-M-n" . jinx-next)))
@@ -2819,19 +2938,20 @@ at the correct indentation for Python).
 
 #+begin_src emacs-lisp
   (defun my/quit-all ()
-      (interactive)
-      (if (eq last-command 'my/quit-all)
-           (cond ((region-active-p)
-                  (deactivate-mark))
-                 ((> (minibuffer-depth) 0)
-                  (abort-recursive-edit))
-                 (current-prefix-arg
-                  nil)
-                 ((> (recursion-depth) 0)
-                  (exit-recursive-edit))
-                 (buffer-quit-function
-                  (funcall buffer-quit-function)))
-          (keyboard-quit)))
+    (interactive)
+    (if (eq last-command 'my/quit-all)
+        (cond ((region-active-p)
+               (deactivate-mark))
+              ((> (minibuffer-depth) 0)
+               (abort-recursive-edit))
+              (current-prefix-arg
+               nil)
+              ((> (recursion-depth) 0)
+               (exit-recursive-edit))
+              (buffer-quit-function
+               (funcall buffer-quit-function)))
+      (keyboard-quit)))
+
   (setq enable-recursive-minibuffers t)
   (global-set-key (kbd "C-g") 'my/quit-all)
 #+end_src
@@ -2878,6 +2998,8 @@ minibuffer for your completion candidates.
 
 #+begin_src emacs-lisp
   (use-package marginalia
+    :custom
+    (marginalia-field-width 120)
     :init
     ;; Must be in the :init section of use-package such that the mode gets
     ;; enabled right away. Note that this forces loading the package.
@@ -3038,9 +3160,17 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
 #+begin_src emacs-lisp
   (use-package embark
     :config
+    (defmacro my/embark-gpt-refacotr (gpt-backend rewrite-message)
+      `(defun ,(intern (format "%s-Refactor" (eval `(gptel-backend-name ,gpt-backend)))) (prompt)
+         (my/gpt-refacotr ,gpt-backend ,rewrite-message prompt)))
+
     (define-key embark-file-map     (kbd "o") (my/embark-ace-action find-file))
     (define-key embark-buffer-map   (kbd "o") (my/embark-ace-action switch-to-buffer))
     (define-key embark-bookmark-map (kbd "o") (my/embark-ace-action bookmark-jump))
+    (setq my/gpt-refacotr-prompt "You are Chris Lattner. Refactor the following code. Generate only code, no explanation, no code fences. Additionally, revise the comment and consider renaming variables if appropriate.")
+    (keymap-set embark-region-map "g" (my/embark-gpt-refacotr gptel--gemini my/gpt-refacotr-prompt))
+    (keymap-set embark-region-map "o" (my/embark-gpt-refacotr gptel--openai my/gpt-refacotr-prompt))
+    (keymap-set embark-region-map "a" (my/embark-gpt-refacotr gptel--anthropic my/gpt-refacotr-prompt))
     (define-key embark-file-map  (kbd "s") 'my/scp-file)
     :bind
     ("C-h B" . embark-bindings) ;; alternative for `describe-bindings'
@@ -3075,6 +3205,8 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
     (corfu-auto t)                 ;; Enable auto completion
     (global-corfu-modes '((not shell-mode) t))
+    ;; https://github.com/minad/corfu/discussions/457
+    (text-mode-ispell-word-completion nil) ;; disable ispell
     :bind
     (:map corfu-map
           ("TAB" . corfu-next)
@@ -3087,11 +3219,10 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
   ;; Add extensions
   (use-package cape
     :init
-    (global-corfu-mode)
     ;; Add `completion-at-point-functions', used by `completion-at-point'.
     (add-to-list 'completion-at-point-functions #'cape-file)
     (add-to-list 'completion-at-point-functions #'cape-dabbrev)
-    (add-to-list 'completion-at-point-functions #'cape-history)
+    ;; (add-to-list 'completion-at-point-functions #'cape-history)
     (add-to-list 'completion-at-point-functions #'cape-keyword))
 
   ;; A few more useful configurations...
@@ -3099,7 +3230,7 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     :init
     ;; TAB cycle if there are only few candidates
     (setq completion-cycle-threshold 3)
-
+    (setq warning-minimum-level :error)
     ;; Emacs 28: Hide commands in M-x which do not apply to the current mode.
     ;; Corfu commands are hidden, since they are not supposed to be used via M-x.
     (setq read-extended-command-predicate
@@ -3167,9 +3298,10 @@ makes that automatic.
   (defun my/split-window-right-and-switch ()
     "Split the window vertically, then switch to the new pane."
     (interactive)
-    (let ((total-width (window-total-width)))
-      (split-window-right (floor (* 0.6 total-width))))
-    ;; (balance-windows)
+    (split-window-right)
+    (balance-windows)
+    ;; (let ((total-width (window-total-width)))
+      ;; (split-window-right (floor (* 0.6 total-width))))
     (other-window 1))
 
   (global-set-key (kbd "C-x 2") 'my/split-window-below-and-switch)
@@ -3211,40 +3343,14 @@ warp selected region with punctuate.
 
 ** Use multiple cursors
 
-Hydra short-keys
-#+begin_src emacs-lisp
-  (defhydra hydra-multiple-cursors (:hint nil)
-    "
-     Up^^             Down^^           Miscellaneous           % 2(mc/num-cursors) cursor%s(if (> (mc/num-cursors) 1) \"s\" \"\")
-    ------------------------------------------------------------------
-     [_p_]   Next     [_n_]   Next     [_l_] Edit lines  [_0_] Insert numbers
-     [_P_]   Skip     [_N_]   Skip     [_a_] Mark all    [_A_] Insert letters
-     [_M-p_] Unmark   [_M-n_] Unmark   [_s_] Search
-     [Click] Cursor at point       [_q_] Quit"
-    ("l" mc/edit-lines :exit t)
-    ("a" mc/mark-all-like-this :exit t)
-    ("n" mc/mark-next-like-this)
-    ("N" mc/skip-to-next-like-this)
-    ("M-n" mc/unmark-next-like-this)
-    ("p" mc/mark-previous-like-this)
-    ("P" mc/skip-to-previous-like-this)
-    ("M-p" mc/unmark-previous-like-this)
-    ("s" mc/mark-all-in-region-regexp :exit t)
-    ("0" mc/insert-numbers :exit t)
-    ("A" mc/insert-letters :exit t)
-    ("<mouse-1>" mc/add-cursor-on-click)
-    ;; Help with click recognition in this hydra
-    ("<down-mouse-1>" ignore)
-    ("<drag-mouse-1>" ignore)
-    ("q" nil))
-#+end_src
-
 Set multiple cursors for better marker words
 
 #+BEGIN_SRC emacs-lisp
   (use-package multiple-cursors
     :bind
-    ("C-c m" . hydra-multiple-cursors/body)
+    ("C->" . mc/mark-next-like-this)
+    ("C-<" . mc/mark-previous-like-this)
+    ("C-M-m" . mc/mark-all-like-this)
     :init
     (multiple-cursors-mode))
 #+END_SRC
@@ -3276,12 +3382,12 @@ Use ace-jump-mode to quick jump to words or char
 #+BEGIN_SRC emacs-lisp
   (use-package avy
     :bind
-    ("C-c j" . avy-goto-word-or-subword-1)
-    ("C-'"   . avy-goto-char-timer)
+    ("C-j" . avy-goto-char-timer)
+    ("C-c C-j" . avy-resume)
+
     :config
-    (setq avy-background t)
-    (setq avy-timeout-seconds 0.3)
-    (unbind-key "C-'" org-mode-map)) ;; jump in current frame
+    (setq avy-background nil)
+    (setq avy-timeout-seconds 0.3))
 #+END_SRC
 
 ** Scrolling one line
@@ -3409,7 +3515,7 @@ maximum memory allotted to Emacs.
 #+BEGIN_SRC emacs-lisp
   (use-package too-long-lines-mode
     ;; using use-package PATH
-    :load-path "~/.emacs.d/too-long-lines-mode"
+    :load-path "~/.emacs.d/third_party/too-long-lines-mode"
     ;; using quelpa URL
     ;; :quelpa
     ;; ((too-long-lines-mode
@@ -3749,6 +3855,103 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
 #+begin_src emacs-lisp
   (use-package repeat-help
     :hook (repeat-mode . repeat-help-mode))
+#+end_src
+
+**  TS-movement
+
+#+begin_src emacs-lisp
+  (use-package ts-movement
+    :load-path "~/.emacs.d/third_party/ts-movement"
+    :ensure multiple-cursors
+    :ensure hydra
+    :config
+    (defhydra tsm/hydra ()
+      "TS Movement"
+      ("d" #'tsm/delete-overlay-at-point)
+      ("D" #'tsm/clear-overlays-of-type)
+      ("C-b" #'tsm/backward-overlay)
+      ("C-f" #'tsm/forward-overlay)
+      ("b" #'tsm/node-prev)
+      ("f" #'tsm/node-next)
+      ("u" #'tsm/node-parent)
+      ("d" #'tsm/node-child)
+      ("N" #'tsm/node-children)
+      ("s" #'tsm/node-children-of-type)
+      ("a" #'tsm/node-start)
+      ("e" #'tsm/node-end)
+      ("m" #'tsm/node-mark)
+      ("c" #'tsm/mc/mark-all-overlays))
+    (push 'tsm/hydra/tsm/mc/mark-all-overlays mc--default-cmds-to-run-once)
+    (advice-add 'symbol-overlay-remove-all :after (lambda () (tsm/clear-overlays (point))))
+
+    (defun my/treesit-backward-up-list ()
+      (interactive)
+      (let* ((start-point (point))
+             (node (treesit-node-on start-point start-point)))
+        (while (and node
+                    (= (point) start-point))
+          (setq node (treesit-node-parent node))
+          (when node
+            (goto-char (treesit-node-start node))))
+        (when (= (point) start-point)
+          (message "No parent node found or already at root"))))
+
+    (defun my/down-list ()
+      (interactive)
+      (let* ((start-point (point))
+             (next-sibling (treesit-node-on start-point start-point))
+             found-node)
+        (while (and next-sibling (not found-node))
+          (if (> (treesit-node-child-count next-sibling) 0)
+              (setq found-node next-sibling)
+            (setq next-sibling (treesit-node-next-sibling next-sibling))))
+        (if found-node
+            (progn
+              (goto-char (treesit-node-start found-node))
+              (message "Moved to next non-leaf sibling"))
+          (message "No next non-leaf sibling found"))))
+
+    (defun my/backward-node ()
+      "Move backward to the previous node in the tree, following a pre-order traversal."
+      (interactive)
+      ;; (message "node at: %s" (treesit-node-string (treesit-node-at (point))))
+      (when-let ((node (treesit-node-at (point))))
+        (let ((target-node nil))
+          (while (and node (not target-node))
+            (if-let ((prev-sibling (treesit-node-prev-sibling node)))
+                (progn
+                  (setq node prev-sibling)
+                  (while (treesit-node-child node -1)
+                    (setq node (treesit-node-child node -1)))
+                  (unless (treesit-node-check node 'missing) ; Skip invalid node, continue loop
+                    (setq target-node node)))
+              (setq node (treesit-node-parent node))))
+          (when target-node
+            ;; (message "target-node: %s" (treesit-node-string target-node))
+            (goto-char (treesit-node-start target-node))))))
+
+    (defun my/forward-node ()
+      (interactive)
+      (let ((node (treesit-node-at (point))))
+        (while node
+          (if-let ((next-sibling (treesit-node-next-sibling node)))
+              (if (treesit-node-check next-sibling 'missing)
+                  (setq node next-sibling) ; Skip invalid node, continue loop
+                (goto-char (treesit-node-start next-sibling))
+                (setq node nil))  ; Exit the loop after moving
+            (setq node (treesit-node-parent node))))))  ; Move to parent if no next sibling
+
+    :bind (:map ts-movement-map
+                ("C-M-u" . my/treesit-backward-up-list)
+                ("C-M-d" . my/down-list)
+                ("M-f" . my/forward-node)
+                ("M-b" . my/backward-node)
+                ("C-c ." . tsm/hydra/body))
+
+    :hook
+    ((bash-ts-mode c++-ts-mode c-ts-mode cmake-ts-mode dockerfile-ts-mode json-ts-mode
+                   python-ts-mode rust-ts-mode toml-ts-mode typescript-ts-mode yaml-ts-mode)
+     . ts-movement-mode))
 #+end_src
 
 * Set custom keybindings
