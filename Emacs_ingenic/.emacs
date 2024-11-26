@@ -214,7 +214,7 @@ This is used by `comint-watch-for-password-prompt'."
 
 ;; Kill buffer/emacs
 (global-set-key [C-f4] 'kill-this-buffer)
-(global-set-key [f8] 'kill-this-buffer)
+(global-set-key [f8] '(lambda() (interactive) (kill-this-buffer)))
 (global-set-key [M-f4] 'save-buffers-kill-emacs)
 
 ;; Alternative copy/paste
