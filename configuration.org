@@ -246,18 +246,18 @@ Theme loading symbols.
 
 #+begin_src emacs-lisp
   (defvar theme-pool
-    '(modus-operandi
-      modus-vivendi
-      modus-operandi-tinted
-      modus-vivendi-tinted
-      modus-operandi-deuteranopia
-      modus-vivendi-deuteranopia
-      modus-operandi-tritanopia
-      modus-vivendi-tritanopia
+    '(modus-vivendi
+      ;; modus-operandi
+      ;; modus-operandi-tinted
+      ;; modus-vivendi-tinted
+      ;; modus-operandi-deuteranopia
+      ;; modus-vivendi-deuteranopia
+      ;; modus-operandi-tritanopia
+      ;; modus-vivendi-tritanopia
       ef-melissa-light
-      ef-dark
-      ef-day
-      ef-night
+      ;; ef-dark
+      ;; ef-day
+      ;; ef-night
       ))
 
   (defvar my/choosing-theme 'ef-melissa-light)
@@ -396,9 +396,9 @@ Note that this overrides the default font-related keybindings from
 #+BEGIN_SRC emacs-lisp
   (if (eq system-type 'gnu/linux)
       (setq my/default-font "Ubuntu Mono")
-    (setq my/default-font "Source Code Pro"))
+    (setq my/default-font "Iosevka SS09"))
 
-  (setq my/default-font-size 14)
+  (setq my/default-font-size 15)
   (setq my/current-font-size my/default-font-size)
 
   (setq my/font-change-increment 1.1)
@@ -461,7 +461,7 @@ programming.
     :custom
     ;; │┃▕▐
     (git-gutter:window-width 1)
-    (git-gutter:update-interval 0.3)
+    (git-gutter:update-interval 2)
     (git-gutter:always-show-separator t)
     (git-gutter:added-sign "▐")
     (git-gutter:deleted-sign "▐")
@@ -522,6 +522,19 @@ I use a few packages in virtually every programming or writing environment to
 manage the project, handle auto-completion, search for terms, and deal with
 version control. That's all in here.
 
+
+** exec-path-from-shell
+
+A GNU Emacs library to ensure environment variables inside Emacs look the same
+as in the user's shell.
+
+#+begin_src emacs-lisp
+  (use-package exec-path-from-shell
+    :if (eq system-type 'darwin)
+    :init
+    (exec-path-from-shell-initialize))
+#+end_src
+
 ** project-cmake
 
 The package project-cmake incorporates the required logic to understand that a
@@ -529,13 +542,14 @@ project is to be configured, built and tested using CMake and CTest.
 
 #+begin_src emacs-lisp
   (use-package project-cmake
-    :if (eq system-type 'gnu/linux)
     :load-path "~/.emacs.d/third_party/project-cmake/"
     :custom
     (project-vc-merge-submodules nil)
     (project-vc-extra-root-markers '(".dir-locals.el"))
     (project-cmake-build-directory-name "build")
     :config
+    ;; Rebind C-x C-p to `project-prefix` to prevent mistyping and improve project navigation
+    (define-key global-map (kbd "C-x C-p") project-prefix-map)
     (put 'compilation-environment 'safe-local-variable #'listp)
     (put 'project-cmake-configuration-arguments 'safe-local-variable #'listp)
     (put 'project-cmake-build-type 'safe-local-variable #'stringp)
@@ -672,38 +686,6 @@ Force open shell in the current buffer
   (push (cons "\\*shell\\*" display-buffer--same-window-action) display-buffer-alist)
 #+END_SRC
 
-#+begin_src emacs-lisp
-  (setq comint-buffer-maximum-size 20000)
-  (setq comint-prompt-read-only nil) ;; If non-nil, the comint prompt is read only.
-  (setq read-process-output-max (* 1024 1024))
-  (setq process-adaptive-read-buffering nil)
-#+end_src
-
-*** bash-completion
-
-Add shell completion
-#+BEGIN_SRC emacs-lisp
-  (use-package bash-completion
-    :config (bash-completion-setup)
-    :custom
-    (bash-completion-process-timeout 0.1))
-#+END_SRC
-
-*** user define
-
-Get environment variable in Shell and set them to Emacs
-#+begin_src emacs-lisp
-  (defun my/get-shell-env-value-and-set-emacs ()
-  ; get environment variable form shell and set to emacs
-    (interactive)
-    (let ((env-var '("PATH" "LD_LIBRARY_PATH" "PYTHONPATH")))
-      (mapcar #'shell-copy-environment-variable env-var)
-      (setq python-shell-process-environment
-            (mapcar (lambda (x) (format "%s=%s" x (getenv x)))
-                    env-var))))
-  (define-key shell-mode-map (kbd "C-c x") 'my/get-shell-env-value-and-set-emacs)
-#+end_src
-
 ** Workgroups another way to organize workspace
 
 *** Winner-mode
@@ -827,9 +809,12 @@ read elf symbols
 ** Tramp
 
 #+begin_src emacs-lisp
-  (setq tramp-remote-shell "/bin/bash")
-  (setq explicit-shell-file-name "/bin/bash")  ;; using bash by default.
-  (setq shell-file-name "/bin/bash")  ;; using bash by default.
+  (let ((my/shell (if (eq system-type 'darwin)
+                      "/bin/zsh"
+                    "/bin/bash")))
+    (setq tramp-remote-shell my/shell)
+    (setq explicit-shell-file-name my/shell)  ;; using bash by default.
+    (setq shell-file-name my/shell))  ;; using bash by default.
 #+end_src
 
 ** Gerrit
@@ -946,6 +931,8 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
     (eglot-extend-to-xref t)
     (eglot-sync-connect nil)
     :config
+    (add-to-list 'eglot-stay-out-of 'eldoc)
+
     (my/test-then-add-eglot '(c-or-c++-mode c-mode c++-mode c++-ts-mode c-ts-mode) "clangd")
     (my/test-then-add-eglot '(python-mode python-ts-mode) "pyright-langserver" "--stdio")
     (my/test-then-add-eglot '(LaTeX-mode tex-mode context-mode texinfo-mode bibtex-mode) "texlab")
@@ -1030,9 +1017,7 @@ outputs.
     (vterm-kill-buffer-on-exit nil)
     (vterm-always-compile-module t)
     (term-copy-exclude-prompt t)
-    (vterm-buffer-name-string "*vterm %s*")
-    (vterm-keymap-exceptions
-     '("C-c" "C-x" "C-u" "C-g" "C-h" "C-l" "M-x" "M-o" "C-y" "M-y" "M-s")))
+    (vterm-buffer-name-string "*vterm %s*"))
 #+end_src
 
 Eat: Emulate A Terminal
@@ -1042,6 +1027,8 @@ Eat: Emulate A Terminal
     :bind (("C-c t" . eat-new-term)
            (:map eat-line-mode-map ("C-x C-f" . find-file-at-point)))
     :config
+    (define-key eat-line-mode-map [xterm-paste] #'xterm-paste)
+
     (defun eat-new-term ()
       "Create a new Eat terminal buffer."
       (interactive)
@@ -1049,6 +1036,7 @@ Eat: Emulate A Terminal
 
     (defun my/eat-add-compilation-environment ()
       (hack-dir-local-variables-non-file-buffer)
+      (setq-local font-lock-defaults '(nil t))
       (setq-local process-environment
                   (append compilation-environment process-environment)))
     :hook
@@ -1057,11 +1045,80 @@ Eat: Emulate A Terminal
     (eat-mode . my/eat-add-compilation-environment)
 
     :custom
+    (xterm-store-paste-on-kill-ring nil)
     (eat-enable-auto-line-mode t)
     (eat-shell-prompt-annotation-failure-margin-indicator "✘ ")
     (eat-shell-prompt-annotation-running-margin-indicator "⧗ ")
     (eat-shell-prompt-annotation-success-margin-indicator "✔ "))
 #+end_src
+
+configure =comint-mode=
+
+#+begin_src emacs-lisp
+  (setq comint-buffer-maximum-size 8192)
+  (setq comint-prompt-read-only nil) ;; If non-nil, the comint prompt is read only.
+  (setq read-process-output-max (* 1024 1024))
+  (add-hook 'comint-output-filter-functions #'comint-osc-process-output)
+  (setq process-adaptive-read-buffering nil)
+#+end_src
+
+#+begin_src emacs-lisp
+  (use-package term
+    :config
+    (defun my/term ()
+      (interactive)
+      (let* ((title (generate-new-buffer-name "*terminal*"))
+             (buffer (get-buffer-create title)))
+        (cond ((not (term-check-proc buffer))
+               (with-current-buffer buffer
+                 (term-mode)) ; Install local vars, mode, keymap, ...
+               (term-exec buffer title explicit-shell-file-name nil nil)))
+        (set-buffer buffer)
+        (term-line-mode)
+        (pop-to-buffer-same-window buffer)))
+
+    (defun my/add-compilation-environment ()
+      (hack-dir-local-variables-non-file-buffer)
+      (hl-line-mode -1)
+      (setq-local global-hl-line-mode nil)
+      (setq-local process-environment
+                  (append compilation-environment process-environment)))
+
+    :bind (;; ("C-c t" . my/term)
+           (:map term-mode-map
+                 ("C-x C-f" . find-file-at-point)
+                 ("TAB" . completion-at-point)
+                 ("M-s". nil)))
+    :hook
+    (term-mode . my/add-compilation-environment))
+#+end_src
+
+**** COMMENT Add shell completion
+
+#+BEGIN_SRC emacs-lisp
+  (use-package bash-completion
+    :config (bash-completion-setup)
+    :custom
+    (bash-completion-process-timeout 0.1))
+#+END_SRC
+
+**** COMMENT user define
+
+Get environment variable in Shell and set them to Emacs
+#+begin_src emacs-lisp
+  (defun my/get-shell-env-value-and-set-emacs ()
+  ; get environment variable form shell and set to emacs
+    (interactive)
+    (let ((env-var '("PATH" "LD_LIBRARY_PATH" "PYTHONPATH")))
+      (mapcar #'shell-copy-environment-variable env-var)
+      (setq python-shell-process-environment
+            (mapcar (lambda (x) (format "%s=%s" x (getenv x)))
+                    env-var))))
+  (define-key shell-mode-map (kbd "C-c x") 'my/get-shell-env-value-and-set-emacs)
+#+end_src
+
+
+
 
 *** Fold and unfold code blocks
 
@@ -1623,13 +1680,13 @@ sed,awk,grep, and friends for JSON data.
           (gptel-make-openai "ChatGPT"
             :key 'gptel-api-key
             :stream t
-            :models '("chatgpt-4o-latest" "gpt-4o")))
+            :models '("o1-mini" "chatgpt-4o-latest" "gpt-4o")))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
         :key 'gptel-api-key
         :stream t
-        :models '("gemini-1.5-pro-latest")))
+        :models '("gemini-exp-1206" "gemini-1.5-pro-latest")))
 
     (defvar gptel--anthropic
       (gptel-make-anthropic "Claude"
@@ -1679,7 +1736,9 @@ diff, not the cloned one.
                            (goto-char reg-end)
                            (line-beginning-position 2)))) ; include the newline char
           (cons full-beg full-end)))))
+#+end_src
 
+#+begin_src emacs-lisp
   (defun my/gpt-refacotr (gpt-backend rewrite-message prompt)
     (let ((gptel-backend gpt-backend)
           (gptel-model (car (gptel-backend-models gpt-backend))))
@@ -1693,36 +1752,37 @@ diff, not the cloned one.
               (remove-hook 'ediff-quit-hook my/gptel--ediff-restore)))
       (message "Waiting for %s response..." gptel-model)
       (gptel-request
-          prompt
-        :system rewrite-message
-        :context (my/get-full-line-region (current-buffer))
-        :callback
-        (lambda (response info)
-          (if (not response)
-              (message "ChatGPT response error: %s" (plist-get info :status))
-            (let* ((gptel-buffer (plist-get info :buffer))
-                   (gptel-bounds (plist-get info :context))
-                   (buffer-mode
-                    (buffer-local-value 'major-mode gptel-buffer)))
-              (pcase-let ((`(,new-buf ,new-beg ,new-end)
-                           (with-current-buffer (get-buffer-create "*gptel-rewrite-Region.B-*")
-                             (let ((inhibit-read-only t))
-                               (erase-buffer)
-                               (funcall buffer-mode)
-                               (insert response)
-                               (goto-char (point-min))
-                               (list (current-buffer) (point-min) (point-max))))))
-                (require 'ediff)
-                (add-hook 'ediff-quit-hook my/gptel--ediff-restore)
-                (apply
-                 #'ediff-regions-internal
-                 gptel-buffer
-                 (car gptel-bounds) (cdr gptel-bounds)
-                 new-buf new-beg new-end
-                 nil
-                 ;; (list 'ediff-regions-wordwise 'word-wise nil)
-                 (list 'ediff-regions-wordwise nil nil)
-                 ))))))))
+          ;; o1 model does not support system message, but we can embeded it into the prompt.
+          (format "%s\n%s" rewrite-message prompt)
+          :system rewrite-message
+          :context (my/get-full-line-region (current-buffer))
+          :callback
+          (lambda (response info)
+            (if (not response)
+                (message "ChatGPT response error: %s" (plist-get info :status))
+              (let* ((gptel-buffer (plist-get info :buffer))
+                     (gptel-bounds (plist-get info :context))
+                     (buffer-mode
+                      (buffer-local-value 'major-mode gptel-buffer)))
+                (pcase-let ((`(,new-buf ,new-beg ,new-end)
+                             (with-current-buffer (get-buffer-create "*gptel-rewrite-Region.B-*")
+                               (let ((inhibit-read-only t))
+                                 (erase-buffer)
+                                 (funcall buffer-mode)
+                                 (insert response)
+                                 (goto-char (point-min))
+                                 (list (current-buffer) (point-min) (point-max))))))
+                  (require 'ediff)
+                  (add-hook 'ediff-quit-hook my/gptel--ediff-restore)
+                  (apply
+                   #'ediff-regions-internal
+                   gptel-buffer
+                   (car gptel-bounds) (cdr gptel-bounds)
+                   new-buf new-beg new-end
+                   nil
+                   ;; (list 'ediff-regions-wordwise 'word-wise nil)
+                   (list 'ediff-regions-wordwise nil nil)
+                   ))))))))
 #+end_src
 
 ** BuildBot
@@ -2688,9 +2748,9 @@ English to Chinese and Chinese to English.
   No prompt if the region is active or `thing-at-point' returns
   non-nil."
       (interactive)
-      (if-let ((word (if (use-region-p)
-                         (buffer-substring-no-properties (region-beginning) (region-end))
-                       (thing-at-point 'word t))))
+      (if-let* ((word (if (use-region-p)
+                          (buffer-substring-no-properties (region-beginning) (region-end))
+                        (thing-at-point 'word t))))
           (progn
             (bing-dict-brief word))
         (call-interactively #'bing-dict-brief)))
@@ -2969,8 +3029,13 @@ at the correct indentation for Python).
         :config
         (load fuz-core-bin nil t))
       (setq fussy-score-fn 'fussy-fuz-score))
+
+    (add-hook 'minibuffer-setup-hook
+              (lambda ()
+                (setq-local fussy-use-cache nil)))
+
     :custom
-    (fussy-use-cache nil)
+    (fussy-use-cache t)
     (fussy-compare-same-score-fn 'fussy-histlen->strlen<)
     (fussy-filter-fn 'fussy-filter-default)
     (fussy-default-regex-fn 'fussy-pattern-flex-1)
@@ -3204,9 +3269,40 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (corfu-auto-delay 0.1)
     (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
     (corfu-auto t)                 ;; Enable auto completion
-    (global-corfu-modes '((not shell-mode) t))
+    ;; (global-corfu-modes '((not shell-mode) t))
+    (global-corfu-modes t)
+    (corfu-preview-current nil)
     ;; https://github.com/minad/corfu/discussions/457
     (text-mode-ispell-word-completion nil) ;; disable ispell
+
+    :config
+    (when (featurep 'tty-child-frames)
+      (setq corfu--frame-parameters
+            '((no-accept-focus . t)
+              (no-focus-on-map . t)
+              (min-width . t)
+              (min-height . t)
+              (border-width . 0)
+              (outer-border-width . 0)
+              (internal-border-width . 0)
+              (child-frame-border-width . 1)
+              (vertical-scroll-bars . nil)
+              (horizontal-scroll-bars . nil)
+              (menu-bar-lines . 0)
+              (tool-bar-lines . 0)
+              (tab-bar-lines . 0)
+              (no-other-frame . t)
+              (unsplittable . t)
+              (undecorated . t)
+              (cursor-type . nil)
+              (no-special-glyphs . t)
+              (desktop-dont-save . t))))
+
+    ;; https://github.com/minad/corfu/issues/330
+    (advice-add 'python-shell-completion-at-point :around
+                (lambda (fun &optional arg)
+                  (cape-wrap-noninterruptible (lambda () (funcall fun arg)))))
+
     :bind
     (:map corfu-map
           ("TAB" . corfu-next)
@@ -3223,22 +3319,23 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (add-to-list 'completion-at-point-functions #'cape-file)
     (add-to-list 'completion-at-point-functions #'cape-dabbrev)
     ;; (add-to-list 'completion-at-point-functions #'cape-history)
-    (add-to-list 'completion-at-point-functions #'cape-keyword))
+    (add-to-list 'completion-at-point-functions #'cape-keyword)
+    :config
+    (advice-add 'eglot-completion-at-point :around #'cape-wrap-buster))
 
   ;; A few more useful configurations...
   (use-package emacs
-    :init
+    :custom
     ;; TAB cycle if there are only few candidates
-    (setq completion-cycle-threshold 3)
-    (setq warning-minimum-level :error)
+    (completion-cycle-threshold 3)
+    (warning-minimum-level :error)
     ;; Emacs 28: Hide commands in M-x which do not apply to the current mode.
     ;; Corfu commands are hidden, since they are not supposed to be used via M-x.
-    (setq read-extended-command-predicate
-          #'command-completion-default-include-p)
+    (read-extended-command-predicate #'command-completion-default-include-p)
 
     ;; Enable indentation+completion using the TAB key.
     ;; `completion-at-point' is often bound to M-TAB.
-    (setq tab-always-indent 'complete))
+    (tab-always-indent 'complete))
 #+end_src
 
 *** terminal popup
@@ -3246,13 +3343,13 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
 #+begin_src emacs-lisp
   (use-package corfu-terminal
     :init
-    (unless (display-graphic-p)
+    (unless (corfu--popup-support-p)
       (corfu-terminal-mode +1))
     :custom
     (corfu-terminal-position-right-margin 1))
 #+end_src
 
-*** show diagnose information
+*** COMMENT show diagnose information
 
 #+begin_src emacs-lisp
   (use-package flymake-popon
@@ -3301,7 +3398,7 @@ makes that automatic.
     (split-window-right)
     (balance-windows)
     ;; (let ((total-width (window-total-width)))
-      ;; (split-window-right (floor (* 0.6 total-width))))
+    ;; (split-window-right (floor (* 0.6 total-width))))
     (other-window 1))
 
   (global-set-key (kbd "C-x 2") 'my/split-window-below-and-switch)
@@ -3317,11 +3414,11 @@ results and =C-c C-c= to stop, just like in =dired=.
 #+BEGIN_SRC emacs-lisp
   (eval-after-load 'grep
     '(define-key grep-mode-map
-      (kbd "C-x C-q") 'wgrep-change-to-wgrep-mode))
+                 (kbd "C-x C-q") 'wgrep-change-to-wgrep-mode))
 
   (eval-after-load 'wgrep
     '(define-key grep-mode-map
-      (kbd "C-c C-c") 'wgrep-finish-edit))
+                 (kbd "C-c C-c") 'wgrep-finish-edit))
 
   (setq wgrep-auto-save-buffer t)
 #+END_SRC
@@ -3362,10 +3459,13 @@ Just keep pressing the key until it selects what you want.
 
 #+BEGIN_SRC emacs-lisp
   (use-package expand-region
+    :config
+    ;; Replace the original org-mode excursion function to avoid performance overhead
+    (defun er/save-org-mode-excursion (action)
+      (funcall action))
+
     :bind
-    ("C-c q" . er/expand-region)
-    ;; ("C-=" . mark-sexp)
-    )
+    ("C-c q" . er/expand-region))
 #+END_SRC
 
 #+begin_src emacs-lisp
@@ -3385,9 +3485,10 @@ Use ace-jump-mode to quick jump to words or char
     ("C-j" . avy-goto-char-timer)
     ("C-c C-j" . avy-resume)
 
-    :config
-    (setq avy-background nil)
-    (setq avy-timeout-seconds 0.3))
+    :custom
+    (avy-single-candidate-jump nil)
+    (avy-background nil)
+    (avy-timeout-seconds 0.3))
 #+END_SRC
 
 ** Scrolling one line
@@ -3470,11 +3571,18 @@ while still keeping them within arm’s reach.
            ("C-M-<return>" . popper-toggle-type)
            ("C-M-k" . popper-kill-latest-popup))
     :custom
-    ;; (popper-window-height 12)
     (popper-mode-line nil)
     :config
     (bind-keys* ("C-<tab>" . popper-toggle))
     (setq popper-group-function #'popper-group-by-project)
+
+    (defun popper--fit-window-height (win)
+      "Determine the height of popup window WIN by fitting it to the buffer's content."
+      (fit-window-to-buffer
+       win
+       (floor (frame-height) 3)
+       (floor (frame-height) 4)))
+
     :init
     (setq popper-reference-buffers
           '(;;("Output\\*$" . hide)
@@ -3542,7 +3650,7 @@ Hydra short-keys
     ("q" nil "exit" :exit t))
 #+end_src
 
- back-button offers local and global jumping
+back-button offers local and global jumping
 
 #+begin_src emacs-lisp
   (use-package back-button
@@ -3819,7 +3927,7 @@ https://youtu.be/51eSeqcaikM
     (monkeytype-most-mistyped-amount 10))
 #+end_src
 
-** Add Pinyin
+** COMMENT Add Pinyin
 
 #+begin_src emacs-lisp
   (use-package pyim
@@ -3915,10 +4023,10 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
       "Move backward to the previous node in the tree, following a pre-order traversal."
       (interactive)
       ;; (message "node at: %s" (treesit-node-string (treesit-node-at (point))))
-      (when-let ((node (treesit-node-at (point))))
+      (when-let* ((node (treesit-node-at (point))))
         (let ((target-node nil))
           (while (and node (not target-node))
-            (if-let ((prev-sibling (treesit-node-prev-sibling node)))
+            (if-let* ((prev-sibling (treesit-node-prev-sibling node)))
                 (progn
                   (setq node prev-sibling)
                   (while (treesit-node-child node -1)
@@ -3934,7 +4042,7 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
       (interactive)
       (let ((node (treesit-node-at (point))))
         (while node
-          (if-let ((next-sibling (treesit-node-next-sibling node)))
+          (if-let* ((next-sibling (treesit-node-next-sibling node)))
               (if (treesit-node-check next-sibling 'missing)
                   (setq node next-sibling) ; Skip invalid node, continue loop
                 (goto-char (treesit-node-start next-sibling))
