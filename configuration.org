@@ -477,7 +477,7 @@ programming.
     :init
     (global-git-gutter-mode t)
     :bind
-    ("C-x C-g" . git-gutter))
+    ("C-x C-g" . git-gutter:popup-hunk))
 #+END_SRC
 
 ** Display line number
@@ -964,16 +964,27 @@ Dape is a debug adapter client for Emacs.
 
 #+begin_src emacs-lisp
   (use-package dape ;; should use gnu-dev:version
+    :defer nil
     :custom
-    (dape-buffer-window-arrangement 'right) ;; Info buffers to the right
+    (dape-buffer-window-arrangement 'left) ;; Info buffers to the left
     (dape-breakpoint-margin-string "●") ;; ◯
-    :config
-    ;; (setq dape-debug t)
+    (dape-inlay-hints t) ;; ◯
+    :init
     (put 'dape-command 'safe-local-variable #'listp)
     (put 'dape-adapter-dir 'safe-local-variable #'stringp)
+    :config
+    ;; (setq dape-debug t)
     (put 'dape--overlay-arrow-position
          'overlay-arrow-string   ;; ▶ →
-         (propertize "▶" 'face 'dape-stack-trace-face)))
+         (propertize "▶" 'face 'dape-stack-trace-face))
+
+    (defun my/dape-add-compilation-environment ()
+      (hack-dir-local-variables-non-file-buffer)
+      (setq-local process-environment
+                  (append compilation-environment process-environment)))
+
+    :hook
+    (dape-start . my/dape-add-compilation-environment))
 #+end_src
 
 *** Xref jump
@@ -1055,11 +1066,17 @@ Eat: Emulate A Terminal
 configure =comint-mode=
 
 #+begin_src emacs-lisp
-  (setq comint-buffer-maximum-size 8192)
-  (setq comint-prompt-read-only nil) ;; If non-nil, the comint prompt is read only.
-  (setq read-process-output-max (* 1024 1024))
-  (add-hook 'comint-output-filter-functions #'comint-osc-process-output)
-  (setq process-adaptive-read-buffering nil)
+  (use-package comint
+    :ensure nil ; It's built-in
+    :custom
+    (comint-buffer-maximum-size 8192)
+    (comint-prompt-read-only nil) ;; If non-nil, the comint prompt is read only.
+    (read-process-output-max (* 1024 1024))
+    (process-adaptive-read-buffering nil)
+    (comint-completion-addsuffix nil) ;; Disable adding suffixes to file name completions
+
+    :config
+    (add-hook 'comint-output-filter-functions #'comint-osc-process-output))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -1117,8 +1134,22 @@ Get environment variable in Shell and set them to Emacs
   (define-key shell-mode-map (kbd "C-c x") 'my/get-shell-env-value-and-set-emacs)
 #+end_src
 
+*** Copy from Emacs to the OS's clipboard
 
+#+begin_src emacs-lisp
+  ;; using cliptty
+  ;; (use-package clipetty
+  ;;   :hook (after-init . global-clipetty-mode))
 
+  ;; the builtin solution also works for alacrietty
+  (setq xterm-extra-capabilities '(modifyOtherKeys reportBackground setSelection))
+#+end_src
+
+Enable mouse-mode in terminal
+
+#+begin_src emacs-lisp
+  (xterm-mouse-mode +1)
+#+end_src
 
 *** Fold and unfold code blocks
 
@@ -1167,15 +1198,18 @@ Emacs has a minor mode called hs-minor-mode that allows users to fold and hide b
 
 *** Highlight variables
 
- #+BEGIN_SRC emacs-lisp
-   (use-package symbol-overlay
-     :bind (("M-i" . symbol-overlay-put)
-            ("M-n" . symbol-overlay-jump-next)
-            ("M-p" . symbol-overlay-jump-prev)
-            ("M-N" . symbol-overlay-switch-forward)
-            ("M-P" . symbol-overlay-switch-backward)
-            ("M-C" . symbol-overlay-remove-all)))
- #+END_SRC
+#+BEGIN_SRC emacs-lisp
+  (use-package symbol-overlay
+    :bind (("M-i" . symbol-overlay-put)
+           ("M-n" . symbol-overlay-jump-next)
+           ("M-p" . symbol-overlay-jump-prev)
+           ("M-N" . symbol-overlay-switch-forward)
+           ("M-P" . symbol-overlay-switch-backward)
+           ("M-C" . symbol-overlay-remove-all))
+    :custom
+    ;; Set priority just below region highlight (nil . 100) for proper layering
+    (symbol-overlay-priority -1))
+#+END_SRC
 
 *** Tree-sitter
 
@@ -1595,10 +1629,6 @@ These are syntax highlighting files for the Emacs and XEmacs editors.
 #+begin_src emacs-lisp
   (use-package tablegen-mode
     :mode "\\.td$"
-    :hook
-    (tablegen-mode . turn-on-font-lock)
-    (tablegen-mode . git-gutter--turn-on)
-    (tablegen-mode . display-line-numbers--turn-on)
     :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
@@ -1610,6 +1640,8 @@ These are syntax highlighting files for the Emacs and XEmacs editors.
 
 #+begin_src emacs-lisp
   (use-package mlir-mode
+    :custom
+    (mlir-opt "hmcc-opt")
     :mode "\\.pdll$" "\\.mlir$"
     :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
@@ -1670,29 +1702,60 @@ sed,awk,grep, and friends for JSON data.
            :map gptel-mode-map
            ("C-c C-x t" . gptel-set-topic))
     :config
-    ;; (setq gptel--debug t)
+    ;; (setq gptel-log-level 'debug)
     (setq gptel-default-mode 'org-mode)
-    (unless (my/internet-up-p)
-      (setq-default gptel-proxy
-                    (format "socks5h://%s" my/socks-proxy)))
+
+    (setq-default gptel-proxy (if (member user-login-name '("man.lu" "mattlu"))
+                                  "socks5h://vps-us:1055"
+                                (format "socks5h://%s" my/socks-proxy)))
 
     (setq gptel--openai
           (gptel-make-openai "ChatGPT"
             :key 'gptel-api-key
             :stream t
-            :models '("o1-mini" "chatgpt-4o-latest" "gpt-4o")))
+            :models '(o1-mini chatgpt-4o-latest)))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
         :key 'gptel-api-key
         :stream t
-        :models '("gemini-exp-1206" "gemini-1.5-pro-latest")))
+        :models '(gemini-2.5-pro-exp-03-25)))
+
+    (defvar gptel--anthropic-thinking
+      (gptel-make-anthropic "Claude-thinking"
+        :key 'gptel-api-key
+        :stream t
+        :models '(claude-3-7-sonnet-latest)
+        :header (lambda () (when-let* ((key (gptel--get-api-key)))
+                             `(("x-api-key" . ,key)
+                               ("anthropic-version" . "2023-06-01")
+                               ("anthropic-beta" . "pdfs-2024-09-25")
+                               ("anthropic-beta" . "output-128k-2025-02-19")
+                               ("anthropic-beta" . "token-efficient-tools-2025-02-19")
+                               ("anthropic-beta" . "prompt-caching-2024-07-31"))))
+        :request-params '(:thinking (:type "enabled" :budget_tokens 32000)
+                                    :max_tokens 128000)))
 
     (defvar gptel--anthropic
       (gptel-make-anthropic "Claude"
         :key 'gptel-api-key
         :stream t
-        :models '("claude-3-5-sonnet-latest")))
+        :models '(claude-3-7-sonnet-latest)))
+
+    (defvar gptel--deepseek
+      (gptel-make-deepseek "DeepSeek"
+        :stream t
+        :key 'gptel-api-key
+        :models '(deepseek-reasoner deepseek-chat)))
+
+    (defvar gptel--openrouter
+      (gptel-make-openai "OpenRouter"
+        :host "openrouter.ai"
+        :endpoint "/api/v1/chat/completions"
+        :stream t
+        :key 'gptel-api-key
+        :models '(openai/o3-mini-high
+                  perplexity/r1-1776)))
 
     (setq-default gptel-backend gptel--gemini)
 
@@ -1706,7 +1769,7 @@ sed,awk,grep, and friends for JSON data.
     (add-hook 'ediff-quit-hook #'my/ediff-cleanup)
 
     :custom
-    (gptel-curl-file-size-threshold 2000000)
+    ;; (gptel-max-tokens 8192)
     (gptel-model 'gpt-4o-mini)
     (gptel-use-curl t)
     (gptel-playback t))
@@ -1754,35 +1817,36 @@ diff, not the cloned one.
       (gptel-request
           ;; o1 model does not support system message, but we can embeded it into the prompt.
           (format "%s\n%s" rewrite-message prompt)
-          :system rewrite-message
-          :context (my/get-full-line-region (current-buffer))
-          :callback
-          (lambda (response info)
-            (if (not response)
-                (message "ChatGPT response error: %s" (plist-get info :status))
-              (let* ((gptel-buffer (plist-get info :buffer))
-                     (gptel-bounds (plist-get info :context))
-                     (buffer-mode
-                      (buffer-local-value 'major-mode gptel-buffer)))
-                (pcase-let ((`(,new-buf ,new-beg ,new-end)
-                             (with-current-buffer (get-buffer-create "*gptel-rewrite-Region.B-*")
-                               (let ((inhibit-read-only t))
-                                 (erase-buffer)
-                                 (funcall buffer-mode)
-                                 (insert response)
-                                 (goto-char (point-min))
-                                 (list (current-buffer) (point-min) (point-max))))))
-                  (require 'ediff)
-                  (add-hook 'ediff-quit-hook my/gptel--ediff-restore)
-                  (apply
-                   #'ediff-regions-internal
-                   gptel-buffer
-                   (car gptel-bounds) (cdr gptel-bounds)
-                   new-buf new-beg new-end
-                   nil
-                   ;; (list 'ediff-regions-wordwise 'word-wise nil)
-                   (list 'ediff-regions-wordwise nil nil)
-                   ))))))))
+        :system rewrite-message
+        :stream nil
+        :context (my/get-full-line-region (current-buffer))
+        :callback
+        (lambda (response info)
+          (if (not (stringp response))
+              (message "Invalid ChatGPT response (not a string). Status: %s" (plist-get info :status))
+            (let* ((gptel-buffer (plist-get info :buffer))
+                   (gptel-bounds (plist-get info :context))
+                   (buffer-mode
+                    (buffer-local-value 'major-mode gptel-buffer)))
+              (pcase-let ((`(,new-buf ,new-beg ,new-end)
+                           (with-current-buffer (get-buffer-create "*gptel-rewrite-Region.B-*")
+                             (let ((inhibit-read-only t))
+                               (erase-buffer)
+                               (funcall buffer-mode)
+                               (insert response)
+                               (goto-char (point-min))
+                               (list (current-buffer) (point-min) (point-max))))))
+                (require 'ediff)
+                (add-hook 'ediff-quit-hook my/gptel--ediff-restore)
+                (apply
+                 #'ediff-regions-internal
+                 gptel-buffer
+                 (car gptel-bounds) (cdr gptel-bounds)
+                 new-buf new-beg new-end
+                 nil
+                 ;; (list 'ediff-regions-wordwise 'word-wise nil)
+                 (list 'ediff-regions-wordwise nil nil)
+                 ))))))))
 #+end_src
 
 ** BuildBot
@@ -1835,6 +1899,7 @@ Including org-tempo restores the <s-style easy-templates that were deprecated in
 
 #+BEGIN_SRC emacs-lisp
   (use-package org
+    :pin manual
     :ensure org-contrib
     :config
     (put 'narrow-to-region 'disabled nil)
@@ -2725,6 +2790,8 @@ words in the text of the visible portion of the buffer.
                  '(jinx-mode
                    (:eval (jinx--mode-line-format))) t)
 
+    (put 'jinx-overlay 'priority -2) ;; Ensure jinx-overlay is below symbol-overlay in priority
+
     :bind (:map jinx-mode-map
                 ("M-$" . jinx-correct)
                 ("M-p" . nil)
@@ -3232,10 +3299,17 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (define-key embark-file-map     (kbd "o") (my/embark-ace-action find-file))
     (define-key embark-buffer-map   (kbd "o") (my/embark-ace-action switch-to-buffer))
     (define-key embark-bookmark-map (kbd "o") (my/embark-ace-action bookmark-jump))
-    (setq my/gpt-refacotr-prompt "You are Chris Lattner. Refactor the following code. Generate only code, no explanation, no code fences. Additionally, revise the comment and consider renaming variables if appropriate.")
+    (setq my/gpt-refacotr-prompt
+          (concat "You are Chris Lattner. "
+                  "Refactor the following code.\n"
+                  "- Generate ONLY code as output, without any explanation or markdown code fences.\n"
+                  "- Additionally, revise the comment and consider renaming variables if appropriate."
+                  ))
     (keymap-set embark-region-map "g" (my/embark-gpt-refacotr gptel--gemini my/gpt-refacotr-prompt))
     (keymap-set embark-region-map "o" (my/embark-gpt-refacotr gptel--openai my/gpt-refacotr-prompt))
-    (keymap-set embark-region-map "a" (my/embark-gpt-refacotr gptel--anthropic my/gpt-refacotr-prompt))
+    (keymap-set embark-region-map "a" (my/embark-gpt-refacotr gptel--anthropic-thinking my/gpt-refacotr-prompt))
+    (keymap-set embark-region-map "d" (my/embark-gpt-refacotr gptel--deepseek my/gpt-refacotr-prompt))
+    (keymap-set embark-region-map "r" (my/embark-gpt-refacotr gptel--openrouter my/gpt-refacotr-prompt))
     (define-key embark-file-map  (kbd "s") 'my/scp-file)
     :bind
     ("C-h B" . embark-bindings) ;; alternative for `describe-bindings'
@@ -3321,7 +3395,9 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     ;; (add-to-list 'completion-at-point-functions #'cape-history)
     (add-to-list 'completion-at-point-functions #'cape-keyword)
     :config
-    (advice-add 'eglot-completion-at-point :around #'cape-wrap-buster))
+    (advice-add 'eglot-completion-at-point :around #'cape-wrap-buster)
+    :custom
+    (dabbrev-check-all-buffers nil))
 
   ;; A few more useful configurations...
   (use-package emacs
@@ -3329,6 +3405,7 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     ;; TAB cycle if there are only few candidates
     (completion-cycle-threshold 3)
     (warning-minimum-level :error)
+
     ;; Emacs 28: Hide commands in M-x which do not apply to the current mode.
     ;; Corfu commands are hidden, since they are not supposed to be used via M-x.
     (read-extended-command-predicate #'command-completion-default-include-p)
@@ -3992,33 +4069,6 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
     (push 'tsm/hydra/tsm/mc/mark-all-overlays mc--default-cmds-to-run-once)
     (advice-add 'symbol-overlay-remove-all :after (lambda () (tsm/clear-overlays (point))))
 
-    (defun my/treesit-backward-up-list ()
-      (interactive)
-      (let* ((start-point (point))
-             (node (treesit-node-on start-point start-point)))
-        (while (and node
-                    (= (point) start-point))
-          (setq node (treesit-node-parent node))
-          (when node
-            (goto-char (treesit-node-start node))))
-        (when (= (point) start-point)
-          (message "No parent node found or already at root"))))
-
-    (defun my/down-list ()
-      (interactive)
-      (let* ((start-point (point))
-             (next-sibling (treesit-node-on start-point start-point))
-             found-node)
-        (while (and next-sibling (not found-node))
-          (if (> (treesit-node-child-count next-sibling) 0)
-              (setq found-node next-sibling)
-            (setq next-sibling (treesit-node-next-sibling next-sibling))))
-        (if found-node
-            (progn
-              (goto-char (treesit-node-start found-node))
-              (message "Moved to next non-leaf sibling"))
-          (message "No next non-leaf sibling found"))))
-
     (defun my/backward-node ()
       "Move backward to the previous node in the tree, following a pre-order traversal."
       (interactive)
@@ -4050,8 +4100,6 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
             (setq node (treesit-node-parent node))))))  ; Move to parent if no next sibling
 
     :bind (:map ts-movement-map
-                ("C-M-u" . my/treesit-backward-up-list)
-                ("C-M-d" . my/down-list)
                 ("M-f" . my/forward-node)
                 ("M-b" . my/backward-node)
                 ("C-c ." . tsm/hydra/body))
