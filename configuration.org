@@ -255,12 +255,13 @@ Theme loading symbols.
       ;; modus-operandi-tritanopia
       ;; modus-vivendi-tritanopia
       ef-melissa-light
+      ef-maris-dark
       ;; ef-dark
       ;; ef-day
       ;; ef-night
       ))
 
-  (defvar my/choosing-theme 'ef-melissa-light)
+  (defvar my/choosing-theme 'ef-maris-dark)
 #+end_src
 
 #+begin_src emacs-lisp
@@ -345,7 +346,7 @@ Custom face when running in 256-color terminal
   (use-package minions
     :custom
     (minions-mode-line-delimiters (cons "" ""))
-    (minions-prominent-modes '(flymake-mode))
+    (minions-prominent-modes '(flymake-mode dired-async--modeline-mode))
 
     :config
     (defun +set-minions-mode-line-lighter ()
@@ -463,9 +464,9 @@ programming.
     (git-gutter:window-width 1)
     (git-gutter:update-interval 2)
     (git-gutter:always-show-separator t)
-    (git-gutter:added-sign "▐")
-    (git-gutter:deleted-sign "▐")
-    (git-gutter:modified-sign "▐")
+    (git-gutter:added-sign "┃")
+    (git-gutter:deleted-sign "┃")
+    (git-gutter:modified-sign "┃")
     :custom-face
     (git-gutter:added ((t (:foreground "#438340" :background nil))))
     (git-gutter:deleted ((t (:foreground "#815EDD" :background nil))))
@@ -556,6 +557,7 @@ project is to be configured, built and tested using CMake and CTest.
     (put 'project-cmake-kit 'safe-local-variable #'symbolp)
     (put 'project-cmake-generator 'safe-local-variable #'stringp)
     (put 'project-cmake-source-directory-name 'safe-local-variable #'stringp)
+    (put 'project-cmake-build-directory-name 'safe-local-variable #'stringp)
     (project-cmake-scan-kits))
 #+end_src
 
@@ -611,6 +613,7 @@ doesn't require any additional setup. bounding as official recommendation.
     (package-install 'flymake t) ;; install the latest gnu-flymake
     :custom
     (flymake-mode-line-lighter "Φ")
+    (flymake-show-diagnostics-at-end-of-line 'short)
     (flymake-margin-indicator-position 'right-margin)
     (flymake-autoresize-margins t))
 #+END_SRC
@@ -924,7 +927,8 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
                 ("C-c e c" . eglot-reconnect)
                 ("C-c e k" . eglot-shutdown)
                 ("C-c e s" . consult-eglot-symbols)
-                ("C-c e i" . eglot-inlay-hints-mode))
+                ("C-c e i" . eglot-inlay-hints-mode)
+                ("C-c e e" . my/flymake-toggle-diagnostics-at-end-of-line))
     :custom
     ;; (eglot-autoshutdown t)
     (eglot-events-buffer-size 0)
@@ -943,6 +947,7 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
     (my/test-then-add-eglot '(dockerfile-ts-mode) "docker-langserver" "--stdio")
     ;; (my/test-then-add-eglot '(json-ts-mode) "vscode-json-language-server" "--stdio")
     (my/test-then-add-eglot '(mlir-mode) "mlir-lsp-server")
+    (my/test-then-add-eglot '(mojo-mode) "mojo-lsp-server")
 
     (defun eglot-tblgen-command-args (interactive-p)
       (let* ((build-directory (project-cmake-build-directory))
@@ -955,6 +960,29 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
       (add-to-list 'eglot-server-programs
                    '((tablegen-mode) . eglot-tblgen-command-args))
       (add-hook 'tablegen-mode-hook 'eglot-ensure))
+
+    (defun my/flymake-toggle-diagnostics-at-end-of-line ()
+      "Toggle flymake diagnostics display at end of line through different modes.
+  Cycles through: nil -> short -> all -> fancy -> nil..."
+      (interactive)
+      (setq flymake-show-diagnostics-at-end-of-line
+            (pcase flymake-show-diagnostics-at-end-of-line
+              ;; ('nil 'short)
+              ;; ('short t)
+              ;; ('t 'fancy)
+              ('nil 'fancy)
+              ('fancy nil)))
+      ;; Toggle flymake mode to apply changes
+      (when (bound-and-true-p flymake-mode)
+        (flymake-mode -1)
+        (flymake-mode 1))
+      (message "Flymake end-of-line diagnostics: %s"
+               (pcase flymake-show-diagnostics-at-end-of-line
+                 ('nil "disabled")
+                 ('short "short (most severe only)")
+                 ('t "all diagnostics")
+                 ('fancy "all diagnostics (fancy Unicode)"))))
+
     (setq completion-category-defaults nil))
 #+END_SRC
 
@@ -963,7 +991,7 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
 Dape is a debug adapter client for Emacs.
 
 #+begin_src emacs-lisp
-  (use-package dape ;; should use gnu-dev:version
+  (use-package dape
     :defer nil
     :custom
     (dape-buffer-window-arrangement 'left) ;; Info buffers to the left
@@ -1235,7 +1263,6 @@ using tree-sitter to manage Parser
                     (c++-mode . c++-ts-mode))))
     (mapcar #'require '(cmake-ts-mode
                         dockerfile-ts-mode
-                        rust-ts-mode
                         yaml-ts-mode))
     :mode
     ("\\.h\\.inc\\'" . c++-ts-mode)
@@ -1247,15 +1274,28 @@ using tree-sitter to manage Parser
 
 #+begin_src emacs-lisp
   (use-package indent-bars
-    :config
-    (require 'indent-bars-ts)
     :custom
+    (indent-bars-no-descend-lists t) ; no extra bars in continued func arg lists
     (indent-bars-treesit-support t)
-    (indent-bars-no-descend-string t)
+    (indent-bars-treesit-ignore-blank-lines-types '("module"))
     (indent-bars-treesit-scope '((python function_definition class_definition for_statement
                                          if_statement with_statement while_statement)))
-    (indent-bars-treesit-ignore-blank-lines-types '("module"))
     :config
+
+    (defun indent-bars--window-font-space-width (&optional win)
+      "Return the space width of the font in window WIN.
+  If WIN is not provided, the selected window is used. Works for
+  both variable pitch and fixed pitch fonts. Returns 1 in terminal."
+      (let ((win (or win (selected-window))))
+        (with-selected-window win
+          (or (and (fboundp 'font-info)  ; Check if function exists
+                   (when-let* ((ff (face-font 'default))
+                               (fi (ignore-errors (font-info ff)))  ; Safe execution
+                               (space-width (aref fi 10)))
+                     (and (natnump space-width) (> space-width 0) space-width)))
+              (window-font-width)
+              1))))
+
     (defun my/set-indent-bars-bg-fg ()
       (setq
        indent-bars-unspecified-fg-color (face-attribute 'default :foreground)
@@ -1286,33 +1326,55 @@ using tree-sitter to manage Parser
 
 Pip can install binary file.
 
-#+begin_src emacs-lisp
-  (defun my/get-first-valid-path (path-list)
-    ;; get build path
-    ;; this dirctiry should contain the excutable server and config file.
-    ;; check path validation and return list.
-    (let ((path (cl-remove-if-not
-                 (lambda (x)
-                   (file-directory-p (eval x)))
-                 path-list)))
-      (if path
-          (eval (car path))
-        nil)))
-#+end_src
-
 #+BEGIN_SRC emacs-lisp
   (use-package virtualenvwrapper
     :config
     (venv-initialize-interactive-shells) ;; if you want interactive shell support
     (venv-initialize-eshell) ;; if you want eshell support
-    (setq venv-location '("~/py3/"
-                          "~/py3.10/"))
-    (let ((venv-py (my/get-first-valid-path venv-location)))
+    (setq venv-location '("~/" "/tmpfs"))
+    (let ((venv-py (venv-get-candidates)))
       (when venv-py
-        (venv-workon (car (last (split-string venv-py "\/") 2)))))
+        (venv-workon (car venv-py))))
+
+    (put 'eval 'safe-local-variable
+         (lambda (val)
+           (and (listp val)
+                (eq (car val) 'venv-workon)
+                (stringp (cadr val)))))
+
     (my/test-then-add-eglot '(cmake-ts-mode) "cmake-language-server")
-    ;; (my/test-then-add-eglot '(python-mode python-ts-mode) "pylsp")
-    )
+
+    ;; With this patch, venv-py only supports being assigned to the parent directory of the venv,
+    ;; not to the venv's real path.
+    (defun venv-valid-p (path)
+      "Check if PATH is a valid virtualenv directory."
+      (file-exists-p (concat (file-name-as-directory path) venv-executables-dir)))
+
+    (defun venv-find-in-location (name location)
+      "Find virtualenv NAME in LOCATION."
+      (let* ((loc (expand-file-name location))
+             (as-subdir (concat (file-name-as-directory loc) name)))
+        (cond ((venv-valid-p as-subdir) (file-name-as-directory as-subdir))
+              ((and (venv-valid-p loc) (string= name (venv-dir-to-name loc)))
+               (file-name-as-directory loc)))))
+
+    (defun venv-name-to-dir (name)
+      "Given the name of a virtualenv, translate it to the directory."
+      (or (cl-some (lambda (loc) (venv-find-in-location name loc))
+                   (if (listp venv-location) venv-location (list venv-location)))
+          (error "No such virtualenv: %s" name)))
+
+    (defun venv-get-candidates ()
+      "Wrapper to call get-candidates-list or get-candidates-string depending on which
+       is appropriate for how venv-location is specified."
+      (let ((candidates
+             (if (stringp venv-location)
+                 (-mapcat venv-get-candidates-dir (list venv-location))
+               (-mapcat 'venv-get-candidates-dir venv-location))))
+        (when (not (eq (length (-distinct candidates))
+                       (length candidates)))
+          (error "Some virtualenvs have the same name!"))
+        candidates)))
 #+END_SRC
 
 Set ipython as interpreter
@@ -1334,6 +1396,17 @@ Set ipython as interpreter
 #+END_SRC
 
 #+begin_src emacs-lisp
+  (defun my/append-compilation-env-to-python (orig-fun &rest args)
+    "Append `compilation-environment` dir-local var to `python-shell-process-environment'."
+    (hack-dir-local-variables-non-file-buffer)
+    (let ((python-shell-process-environment
+           (append compilation-environment python-shell-process-environment)))
+      (apply orig-fun args)))
+
+  (advice-add 'run-python :around #'my/append-compilation-env-to-python)
+#+end_src
+
+#+begin_src emacs-lisp
   (use-package cython-mode)
 #+end_src
 
@@ -1353,21 +1426,26 @@ Set ipython as interpreter
   (defun my/python-format ()
     (interactive)
     (if (region-active-p)
-        (python-black-partial-dwim)
-      (python-black-buffer)))
+        (ruff-format-region)
+      (ruff-format-buffer)))
 
   (defun my/python-format-key ()
     (define-key (current-local-map) [remap eglot-format] 'my/python-format)
     (local-set-key (kbd "C-M-\\") 'my/python-format))
 
-  (use-package python-black
-    :if (executable-find "black")
-    :init
-    (put 'python-black-extra-args 'safe-local-variable #'listp)
-    :after python
+  (use-package ruff-format
     :hook
     (python-mode . my/python-format-key)
     (python-ts-mode . my/python-format-key))
+#+end_src
+
+** Mojo
+
+#+begin_src emacs-lisp
+  (use-package mojo
+    :commands mojo-mode
+    :load-path "~/.emacs.d/third_party/mojo-hl/"
+    :mode "\\.mojo$")
 #+end_src
 
 ** C++
@@ -1622,7 +1700,7 @@ add Google protocol buffer support
 These are syntax highlighting files for the Emacs and XEmacs editors.
 #+begin_src emacs-lisp
   (use-package llvm-mode
-    :mode "\\.ll$"
+    :mode "\\.ll$" "\\.llir$"
     :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
@@ -1642,7 +1720,7 @@ These are syntax highlighting files for the Emacs and XEmacs editors.
   (use-package mlir-mode
     :custom
     (mlir-opt "hmcc-opt")
-    :mode "\\.pdll$" "\\.mlir$"
+    :mode "\\.pdll$" "\\.mlir$" "\\.ttsir$" "\\.ttir$" "\\.ttcir$" "\\.tttcir$" "\\.ttgir$"
     :load-path "~/.emacs.d/third_party/llvm-mode+")
 #+end_src
 
@@ -1705,7 +1783,8 @@ sed,awk,grep, and friends for JSON data.
     ;; (setq gptel-log-level 'debug)
     (setq gptel-default-mode 'org-mode)
 
-    (setq-default gptel-proxy (if (member user-login-name '("man.lu" "mattlu"))
+    (setq-default gptel-proxy (if (member user-login-name
+                                          '("man.lu" "mattlu" "luman" "mzwqe"))
                                   "socks5h://vps-us:1055"
                                 (format "socks5h://%s" my/socks-proxy)))
 
@@ -1713,34 +1792,32 @@ sed,awk,grep, and friends for JSON data.
           (gptel-make-openai "ChatGPT"
             :key 'gptel-api-key
             :stream t
-            :models '(o1-mini chatgpt-4o-latest)))
+            :models '(gpt-4.1 gpt-5-chat-latest)))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
         :key 'gptel-api-key
         :stream t
-        :models '(gemini-2.5-pro-exp-03-25)))
+        :models '(gemini-2.5-pro)))
 
     (defvar gptel--anthropic-thinking
       (gptel-make-anthropic "Claude-thinking"
         :key 'gptel-api-key
         :stream t
-        :models '(claude-3-7-sonnet-latest)
+        :models '(claude-opus-4-1)
         :header (lambda () (when-let* ((key (gptel--get-api-key)))
                              `(("x-api-key" . ,key)
                                ("anthropic-version" . "2023-06-01")
-                               ("anthropic-beta" . "pdfs-2024-09-25")
-                               ("anthropic-beta" . "output-128k-2025-02-19")
-                               ("anthropic-beta" . "token-efficient-tools-2025-02-19")
-                               ("anthropic-beta" . "prompt-caching-2024-07-31"))))
+                               ("anthropic-beta" . "extended-cache-ttl-2025-04-11")
+                               ("anthropic-beta" . "interleaved-thinking-2025-05-14"))))
         :request-params '(:thinking (:type "enabled" :budget_tokens 32000)
-                                    :max_tokens 128000)))
+                                    :max_tokens 32000)))
 
     (defvar gptel--anthropic
       (gptel-make-anthropic "Claude"
         :key 'gptel-api-key
         :stream t
-        :models '(claude-3-7-sonnet-latest)))
+        :models '(claude-sonnet-4-0 claude-opus-4-1)))
 
     (defvar gptel--deepseek
       (gptel-make-deepseek "DeepSeek"
@@ -1754,8 +1831,11 @@ sed,awk,grep, and friends for JSON data.
         :endpoint "/api/v1/chat/completions"
         :stream t
         :key 'gptel-api-key
-        :models '(openai/o3-mini-high
-                  perplexity/r1-1776)))
+        :models '(qwen/qwen3-coder
+                  x-ai/grok-4
+                  deepseek/deepseek-r1-0528
+                  qwen/qwen3-235b-a22b-thinking-2507
+                  moonshotai/kimi-k2)))
 
     (setq-default gptel-backend gptel--gemini)
 
@@ -3644,7 +3724,8 @@ while still keeping them within arm’s reach.
 #+begin_src emacs-lisp
   (use-package popper
     :bind (("C-<tab>" . popper-toggle)
-           ("C-M-<tab>" . popper-cycle)
+           ("C-S-<tab>" . popper-cycle) ;; compatible with Windows
+           ("C-M-<tab>" . popper-cycle) ;; for MacOS
            ("C-M-<return>" . popper-toggle-type)
            ("C-M-k" . popper-kill-latest-popup))
     :custom
@@ -3932,6 +4013,14 @@ Use =c-x c-j= to enter current folder.
      (bind-key "C-c C-r" 'dired-rsync dired-mode-map))
  #+end_src
 
+#+begin_src emacs-lisp
+  (use-package async
+    :custom
+    (dired-async-skip-fast t)
+    :config
+    (dired-async-mode 1))
+#+end_src
+
 ** COMMENT LanguageTool
 
 #+begin_src emacs-lisp
@@ -4042,7 +4131,7 @@ https://karthinks.com/software/persistent-prefix-keymaps-in-emacs/
     :hook (repeat-mode . repeat-help-mode))
 #+end_src
 
-**  TS-movement
+** TS-movement
 
 #+begin_src emacs-lisp
   (use-package ts-movement
@@ -4134,3 +4223,13 @@ get current buffer's name
                     (message buffer-file-name)
                     (kill-new buffer-file-name)))
 #+END_SRC
+
+** Resole Windows terminal bug
+
+binding C-Space. more information:
+https://github.com/wezterm/wezterm/issues/4055
+https://github.com/microsoft/terminal/issues/2865#issuecomment-929522127
+
+#+begin_src emacs-lisp
+  (global-set-key "\e[9~" 'set-mark-command)
+#+end_src
