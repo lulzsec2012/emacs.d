@@ -4,6 +4,10 @@
 #+STARTUP: overview
 * Configure =use-package=
 
+#+begin_src elisp
+;;; configuration.el --- -*- lexical-binding: t; -*-
+#+end_src
+
 #+BEGIN_SRC emacs-lisp
   (require 'use-package-ensure)
   (setq use-package-verbose t)
@@ -193,9 +197,9 @@ Using Tailscale’s networking mode as a proxy server
 https://tailscale.com/kb/1112/userspace-networking
 
 #+begin_src bash
-ALL_PROXY=socks5://localhost:1055/
-HTTP_PROXY=http://localhost:1055/
-http_proxy=http://localhost:1055/
+ALL_PROXY=socks5://vps-us:1055/
+HTTP_PROXY=http://vps-us:1055/
+http_proxy=http://vps-us:1055/
 #+end_src
 
 * UI preferences
@@ -209,6 +213,19 @@ I don't usually use the menu or scroll bar, and they take up useful space.
       (progn (scroll-bar-mode -1))
     (menu-bar-mode -1))
 #+END_SRC
+
+Only split horizontally when each resulting window can fit 80 columns of code
+plus 10 columns reserved for line numbers, fringes, and padding.
+
+#+begin_src emacs-lisp
+  (use-package emacs
+    :if (>= emacs-major-version 31)
+    :custom
+    (split-width-threshold
+     (let ((code-width 80)
+           (chrome-width 10))
+       (* 2 (+ code-width chrome-width)))))
+#+end_src
 
 ** Use fancy lambdas
 
@@ -242,21 +259,15 @@ Why not?
 Those themes are what I like most.
 
 #+begin_src emacs-lisp
-  (use-package modus-themes
-    :no-require t
-    :custom
-    (modus-themes-italic-constructs t)
-    (modus-themes-bold-constructs nil))
   (use-package ef-themes
-    :no-require t)
+    :ensure t)
 #+end_src
 
 Theme loading symbols.
 
 #+begin_src emacs-lisp
   (defvar theme-pool
-    '(modus-vivendi
-      ef-melissa-light
+    '(ef-melissa-light
       ef-maris-dark
       ))
 
@@ -266,12 +277,19 @@ Theme loading symbols.
 #+begin_src emacs-lisp
   (defun my/ef-themes-custom-faces ()
     (ef-themes-with-colors
-      (if (equal "ef-melissa-light" (symbol-name (car custom-enabled-themes)))
-          (custom-set-faces
-           `(font-lock-comment-face ((,c :inherit italic :foreground "grey"))))
-        (custom-set-faces
-         `(font-lock-comment-face ((,c :inherit italic :foreground ,fg-dim)))))
-      ))
+      (if (eq (car custom-enabled-themes) 'ef-melissa-light)
+          (custom-theme-set-faces
+           'user
+           `(font-lock-comment-face
+             ((t (:inherit italic :foreground "grey"))))
+           `(font-lock-comment-delimiter-face
+             ((t (:inherit italic :foreground "grey")))))
+        (custom-theme-set-faces
+         'user
+         `(font-lock-comment-face
+           ((t (:inherit italic :foreground ,fg-dim))))
+         `(font-lock-comment-delimiter-face
+           ((t (:inherit italic :foreground ,fg-dim))))))))
 
   ;; Using the hook lets our changes persist when we use the commands
   ;; `ef-themes-toggle', `ef-themes-select', and `ef-themes-load-random'.
@@ -319,8 +337,10 @@ Using light theme on MacOS.
       (add-hook 'after-make-frame-functions
                 (lambda (frame)
                   (with-selected-frame frame
-                    (my/load-theme my/choosing-theme)))))
-
+                    (my/load-theme my/choosing-theme)
+                    ;; Keep the mode line neat by removing underline styling.
+                    (set-face-underline 'mode-line-active nil)
+                    (set-face-underline 'mode-line-inactive nil)))))
 #+END_SRC
 
 Custom face when running in 256-color terminal
@@ -352,14 +372,13 @@ Custom face when running in 256-color terminal
 #+BEGIN_SRC emacs-lisp
   (size-indication-mode)
   (column-number-mode)
-  ;; https://github.com/bbatsov/solarized-emacs/issues/113#issuecomment-774019131
-  (custom-set-faces
-   '(mode-line ((t (:underline nil))))
-   '(mode-line-inactive ((t (:underline nil)))))
+  ;; Keep the mode line neat by removing underline styling.
+  (set-face-underline 'mode-line-active nil)
+  (set-face-underline 'mode-line-inactive nil)
 
   (setq mode-line-frame-identification " "
         mode-line-end-spaces ""
-        mode-line-collapse-minor-modes '(not flymake-mode dired-async--modeline-mode)
+        mode-line-collapse-minor-modes '(not flymake-mode)
         mode-line-collapse-minor-modes-to ""
         mode-line-compact 'long)
 #+END_SRC
@@ -475,6 +494,8 @@ programming.
               (lambda (f) (with-selected-frame f (my/git-gutter-theme))))
 
     (global-git-gutter-mode t)
+    :hook
+    (git-gutter-mode . (lambda () (setq-local left-margin-width 1)))
 
     :bind
     ("C-x C-g" . git-gutter:popup-hunk))
@@ -544,8 +565,12 @@ project is to be configured, built and tested using CMake and CTest.
 #+begin_src .dir_locals
 ((nil . ((compilation-environment
           .
-          ("PATH=/usr/local/cuda/bin"))
-          ;; CMake build configuration
+          ("PATH=/usr/local/cuda/bin"
+           ;; Installing libgccjit-13-dev may pull in gcc-14, which pollutes the GCC
+           ;; toolchain that Clang auto-discovers. Pin Clang to the GCC 13 install dir.
+           "CFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13"
+           "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13"))
+           ;; CMake build configuration
           (project-cmake-build-type . "Release")
           (project-cmake-kit . unix)
           (project-cmake-generator . "Ninja")
@@ -628,13 +653,17 @@ doesn't require any additional setup. bounding as official recommendation.
 #+BEGIN_SRC emacs-lisp
   (use-package flymake
     :pin gnu
-    :init
-    (package-install 'flymake t) ;; install the latest gnu-flymake
+    :hook
+    ;; reserve margin for indicator
+    (flymake-mode . (lambda ()
+                      (setq-local right-margin-width 1)
+                      (flymake--resize-margins)))
     :custom
     (flymake-mode-line-lighter "")
     (flymake-show-diagnostics-at-end-of-line 'short)
     (flymake-margin-indicator-position 'right-margin)
-    (flymake-autoresize-margins t))
+    ;; keep the window layout stable when buffers resize.
+    (flymake-autoresize-margins nil))
 #+END_SRC
 
 ** =magit=
@@ -814,12 +843,12 @@ read elf symbols
 *** objdump
 
 #+begin_src emacs-lisp
-  (defcustom my/llvm-objdump-program "/workspace/sdk_latest/bin/nds64le-elf-newlib-v5d/bin/llvm-objdump"
+  (defcustom my/llvm-objdump-program "sipu-llvm-objdump"
     "Path to the llvm-objdump executable used for disassembly."
     :type 'file
     :group 'tools)
 
-  (defcustom my/llvm-objdump-args '("--mattr=+m,+c,+f,+a,+xsiorigin" "-zCDS")
+  (defcustom my/llvm-objdump-args '("--mattr=+m,+c,+f,+a,+xsiorigin" "-zldCS")
     "Default arguments passed to llvm-objdump."
     :type '(repeat string)
     :group 'tools)
@@ -827,24 +856,23 @@ read elf symbols
   (defun my/objdump (file)
     "Disassemble FILE with llvm-objdump and display the result in asm-mode."
     (interactive "fObject file: ")
-    (let* ((program my/llvm-objdump-program)
+    (let* ((program (or (executable-find my/llvm-objdump-program)
+                        (user-error "Cannot find %s in exec-path" my/llvm-objdump-program)))
            (target (expand-file-name file))
            (buf (generate-new-buffer (format "*objdump: %s*" (file-name-nondirectory target))))
            (args (append my/llvm-objdump-args (list target))))
-      (unless (and (stringp program) (file-executable-p program))
-        (user-error "Invalid llvm-objdump program: %s" program))
       (unless (file-readable-p target)
         (user-error "File not readable: %s" target))
       (with-current-buffer buf
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (apply #'call-process program nil (current-buffer) nil
-               (append my/llvm-objdump-args (list target)))
-        (asm-mode)
-        (setq-local objdump-file-name target)
-        (goto-char (point-min))   ; jump to beginning
-        (read-only-mode t))
-      (pop-to-buffer buf))))
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (apply #'call-process program nil (current-buffer) nil
+                 (append my/llvm-objdump-args (list target)))
+          (asm-mode)
+          (setq-local objdump-file-name target)
+          (goto-char (point-min))   ; jump to beginning
+          (read-only-mode t))
+        (pop-to-buffer buf))))
 #+end_src
 
 Generate device-only LLIR for the specified kernel source.
@@ -880,7 +908,7 @@ $(CC) -x sipu -std=c++20 ${CFLAGS} ${INC_PATHS} --offload-device-only -emit-llvm
     (setq shell-file-name my/shell))  ;; using bash by default.
 #+end_src
 
-** Gerrit
+** COMMENT Gerrit
 
 #+begin_src emacs-lisp
   (use-package gerrit
@@ -973,9 +1001,7 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
 #+BEGIN_SRC emacs-lisp
   (use-package eglot
     :pin gnu
-    :init
-    (package-install 'eglot t) ;; install the latest gnu-eglot
-    (use-package consult-eglot)
+    :defer nil
     :commands
     (eglot eglot-ensure)
     ;; :hook
@@ -998,8 +1024,9 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
     :config
     (add-to-list 'eglot-stay-out-of 'eldoc)
 
-    (my/test-then-add-eglot '(c-or-c++-mode c-mode c++-mode c++-ts-mode c-ts-mode) "clangd")
-    (my/test-then-add-eglot '(python-mode python-ts-mode) "pyright-langserver" "--stdio")
+    (my/test-then-add-eglot '(c-or-c++-mode c-mode c++-mode c-or-c++-ts-mode c++-ts-mode c-ts-mode) "clangd")
+    ;; (my/test-then-add-eglot '(python-mode python-ts-mode) "pyright-langserver" "--stdio")
+    (my/test-then-add-eglot '(python-mode python-ts-mode) "ty" "server")
     (my/test-then-add-eglot '(LaTeX-mode tex-mode context-mode texinfo-mode bibtex-mode) "texlab")
     (my/test-then-add-eglot '(javascript-mode js-ts-mode) "typescript-language-server" "--stdio")
     (my/test-then-add-eglot '(sh-mode bash-ts-mode) "bash-language-server" "start")
@@ -1095,6 +1122,10 @@ outputs.
   (use-package vterm
     :init
     (put 'vterm-environment 'safe-local-variable #'listp)
+    ;; set .dir-locals
+    ;; (eval . (setq vterm-environment compilation-environment))
+    (add-to-list 'safe-local-eval-forms
+                 '(setq vterm-environment compilation-environment))
     :bind ("C-c v" . vterm) ;; terminal
     :custom
     (vterm-max-scrollback 10000)
@@ -1561,6 +1592,15 @@ For running Google Tests from a given buffer
     :after cc-mode)
 #+END_SRC
 
+#+begin_src emacs-lisp
+  (defun my/insert-boxed-comment (title)
+    "Insert a boxed comment with TITLE like LLVM style."
+    (interactive "sTitle: ")
+    (let* ((bar "//===----------------------------------------------------------------------===//")
+           (line (format "// %-70s" title)))
+      (insert bar "\n" line "\n" bar "\n")))
+#+end_src
+
 ** Rust
 
 #+begin_src emacs-lisp
@@ -1597,6 +1637,12 @@ For running Google Tests from a given buffer
           (backward-char 27)
           (insert-tab))
         (rust-playground-mode))))
+#+end_src
+
+** Zig
+
+#+begin_src emacs-lisp
+  (use-package zig-mode)
 #+end_src
 
 ** COMMENT Coq
@@ -1817,7 +1863,7 @@ sed,awk,grep, and friends for JSON data.
 
 #+begin_src emacs-lisp
   (defun my/internet-up-p (&optional host)
-    (= 0 (call-process "ping" nil nil nil "-c" "1" "-W" "1"
+    (zerop (call-process "ping" nil nil nil "-c" "1" "-W" "1"
                        (if host host "www.wikipedia.org"))))
 #+end_src
 
@@ -1834,60 +1880,60 @@ sed,awk,grep, and friends for JSON data.
     ;; (setq gptel-log-level 'debug)
     (setq gptel-default-mode 'org-mode)
 
-    (setq-default gptel-proxy (if (member user-login-name
-                                          '("man.lu" "mattlu" "luman" "mzwqe"))
-                                  "socks5h://vps-us:1055"
-                                (format "socks5h://%s" my/socks-proxy)))
+    ;; ALL_PROXY=socks5://vps-us:1055/
+    ;; HTTP_PROXY=http://vps-us:1055/
+    ;; http_proxy=http://vps-us:1055/
+    (unless (my/internet-up-p)
+      (let* ((corporate-users '("man.lu" "mattlu" "luman" "mzwqe"))
+             (proxy-url (if (member user-login-name corporate-users)
+                            "socks5h://vps-us:1055"
+                          (format "socks5h://%s" my/socks-proxy))))
+        (setq-default gptel-proxy proxy-url)))
+
+    ;; (setq gptel-proxy "")
 
     (setq gptel--openai
           (gptel-make-openai "ChatGPT"
             :key 'gptel-api-key
             :stream t
-            :models '(gpt-5-chat-latest)))
+            :models '(gpt-5.5)
+            :request-params '(:reasoning (:effort "high") :text (:verbosity "low"))))
+
+    (setq gptel--openai--cc
+          (gptel-make-openai "ChatGPT-CC"
+            :protocol "http"
+            :host "cc.siorigin.com:8317"
+            :key (lambda (&optional host user)
+                   (gptel-api-key-from-auth-source "cc.siorigin.com" "openai"))
+            :stream t
+            :models '(gpt-5.5)
+            :request-params '(:reasoning_effort  "xhigh" :verbosity "low")))
 
     (defvar gptel--gemini
       (gptel-make-gemini "Gemini"
         :key 'gptel-api-key
         :stream t
-        :models '(gemini-2.5-pro)))
-
-    (defvar gptel--opus-thinking
-      (gptel-make-anthropic "Claude-opus-thinking"
-        :key 'gptel-api-key
-        :stream t
-        :models '(claude-opus-4-1)
-        :header (lambda () (when-let* ((key (gptel--get-api-key)))
-                             `(("x-api-key" . ,key)
-                               ("anthropic-version" . "2023-06-01")
-                               ("anthropic-beta" . "extended-cache-ttl-2025-04-11")
-                               ("anthropic-beta" . "interleaved-thinking-2025-05-14"))))
-        :request-params '(:thinking (:type "enabled" :budget_tokens 32000)
-                                    :max_tokens 32000)))
-
-    (defvar gptel--sonnet-thinking
-      (gptel-make-anthropic "Claude-sonnet-thinking"
-        :key 'gptel-api-key
-        :stream t
-        :models '(claude-sonnet-4-5)
-        :header (lambda () (when-let* ((key (gptel--get-api-key)))
-                             `(("x-api-key" . ,key)
-                               ("anthropic-version" . "2023-06-01")
-                               ("anthropic-beta" . "extended-cache-ttl-2025-04-11")
-                               ("anthropic-beta" . "context-1m-2025-08-07"))))
-        :request-params '(:thinking (:type "enabled" :budget_tokens 32000)
-                                    :max_tokens 64000)))
+        :models '(gemini-3.1-pro-preview)))
 
     (defvar gptel--anthropic
       (gptel-make-anthropic "Claude"
+        :protocol "http"
+        :host "cc.siorigin.com"
         :key 'gptel-api-key
         :stream t
-        :models '(claude-sonnet-4-5 claude-opus-4-1)))
+        :models '(claude-opus-4-7)
+        :header (lambda () (when-let* ((key (gptel--get-api-key)))
+                             `(("x-api-key" . ,key)
+                               ("anthropic-version" . "2023-06-01")
+                               ("anthropic-beta" . "context-1m-2025-08-07"))))
+        :request-params '(:max_tokens 128000 :thinking (:type "adaptive") :output_config (:effort "max"))))
 
     (defvar gptel--deepseek
       (gptel-make-deepseek "DeepSeek"
         :stream t
         :key 'gptel-api-key
-        :models '(deepseek-reasoner deepseek-chat)))
+        :models '(deepseek-v4-pro)
+        :request-params '(:reasoning_effort "max" :output_config (:effort "max"))))
 
     (defvar gptel--openrouter
       (gptel-make-openai "OpenRouter"
@@ -1895,12 +1941,21 @@ sed,awk,grep, and friends for JSON data.
         :endpoint "/api/v1/chat/completions"
         :stream t
         :key 'gptel-api-key
-        :models '(openai/gpt-5
-                  openai/gpt-5-codex
-                  z-ai/glm-4.6
-                  qwen/qwen3-coder-plus
-                  x-ai/grok-4
-                  deepseek/deepseek-r1-0528)))
+        :models '(deepseek/deepseek-v4-pro
+                  z-ai/glm-5.1
+                  ~moonshotai/kimi-latest
+                  ~anthropic/claude-opus-latest
+                  ~openai/gpt-latest
+                  ~google/gemini-pro-latest)
+        :request-params '(:reasoning (:effort "xhigh"))))
+
+    (defvar gptel--tenstorrent
+      (gptel-make-openai "Tenstorrent"
+        :host "console.tenstorrent.com"
+        :endpoint "/v1/chat/completions"
+        :stream t
+        :key 'gptel-api-key
+        :models '(deepseek-ai/DeepSeek-R1-0528)))
 
     (setq-default gptel-backend gptel--openai)
 
@@ -1915,8 +1970,8 @@ sed,awk,grep, and friends for JSON data.
 
     :custom
     ;; (gptel-max-tokens 8192)
-    (gptel-include-reasoning 'ignore)
-    (gptel-model 'gpt-5-chat-latest)
+    (gptel-include-reasoning t)
+    (gptel-model 'gpt-5.5)
     (gptel-use-curl t)
     (gptel-playback t))
 #+end_src
@@ -1948,9 +2003,10 @@ diff, not the cloned one.
 #+end_src
 
 #+begin_src emacs-lisp
-  (defun my/gpt-refactor (gpt-backend gpt-model rewrite-message prompt)
+  (defun my/gpt-refactor (gpt-backend gpt-model rewrite-message prompt proxy)
     (let ((gptel-backend gpt-backend)
-          (gptel-model gpt-model))
+          (gptel-model gpt-model)
+          (gptel-proxy proxy))
 
       (setq my/gptel--ediff-restore-cwc (current-window-configuration))
       (setq my/gptel--ediff-restore
@@ -1960,16 +2016,16 @@ diff, not the cloned one.
               (ediff-kill-buffer-carefully "*gptel-rewrite-Region.B-*")
               (remove-hook 'ediff-quit-hook my/gptel--ediff-restore)))
       (message "Waiting for %s response..." gptel-model)
-      (gptel-request
-          ;; o1 model does not support system message, but we can embeded it into the prompt.
-          (format "%s\n%s" rewrite-message prompt)
+      (gptel-request ;; https://www.youtube.com/watch?v=j2viZGPSydY
+          ;; Repeating the prompt can improve LLM performance.
+          (format "%s\n\n%s" prompt rewrite-message)
         :system rewrite-message
         :stream nil
         :context (my/get-full-line-region (current-buffer))
         :callback
         (lambda (response info)
           (if (not (stringp response))
-              (message "Invalid ChatGPT response (not a string). Status: %s" (plist-get info :status))
+              (message "Invalid LLM response (not a string). Status: %s" (plist-get info :status))
             (let* ((gptel-buffer (plist-get info :buffer))
                    (gptel-bounds (plist-get info :context))
                    (buffer-mode
@@ -1995,6 +2051,10 @@ diff, not the cloned one.
                  ))))))))
 #+end_src
 
+#+begin_src emacs-lisp
+  (use-package gptel-agent)
+#+end_src
+
 ** BuildBot
 
 #+begin_src emacs-lisp
@@ -2012,8 +2072,8 @@ diff, not the cloned one.
 ** Compiler Explorer
 
 There are numerous plugins available that function similarly to Godbolt, each
- with its own unique features and differences. You can explore Godbolt itself at
- the following link:
+with its own unique features and differences. You can explore Godbolt itself at
+the following link:
  [https://godbolt.org](https://godbolt.org).
 
 #+begin_src emacs-lisp
@@ -2061,8 +2121,7 @@ Including org-tempo restores the <s-style easy-templates that were deprecated in
     (define-key org-mode-map (kbd "C-j") nil)
     (define-key org-mode-map (kbd "C-c C-j") nil)
     (bind-keys*
-     ("C-c l" . org-store-link)
-     ("C-c C-l" .  org-insert-link)))
+     ("C-c l" . org-store-link)))
 #+END_SRC
 
 I’d like the initial scratch buffer to be in Org:
@@ -3207,19 +3266,26 @@ at the correct indentation for Python).
     :init
     (setq fzf-native-always-compile-module t)
     :config
-    (fzf-native-load-own-build-dyn)
-    (setq fussy-score-fn 'fussy-fzf-native-score))
+    (fzf-native-load-dyn))
+
+  (use-package fuz
+    :if (executable-find "rustc")
+    :load-path "~/.emacs.d/third_party/fuz.el/"
+    :config
+    (unless (require 'fuz-core nil t)
+      (fuz-build-and-load-dymod)))
 
   (use-package fussy
     :config
-    (fussy-setup)
     (fussy-eglot-setup)
+    (if (executable-find "rustc")
+        (fussy-setup-fuz)
+      (fussy-setup-fzf))
 
     :custom
     (fussy-use-cache t)
     (fussy-compare-same-score-fn 'fussy-histlen->strlen<)
-    (fussy-filter-fn 'fussy-filter-default)
-    (fussy-default-regex-fn 'fussy-pattern-flex-1)
+    ;; (fussy-default-regex-fn 'fussy-pattern-flex-1)
     (completion-styles '(fussy))
     (completion-category-defaults nil)
     (completion-category-overrides nil))
@@ -3262,20 +3328,27 @@ consult-buffer and a Swiper-like search command consult-line.
   (use-package consult
     ;; Replace bindings. Lazily loaded due by `use-package'.
     :bind (;; C-c bindings (mode-specific-map)
+           ("C-c M-x" . consult-mode-command)
+           ("C-c h" . consult-history)
            ("C-c k" . consult-kmacro)
-           ;; C-x bindings (ctl-x-map)
+           ([remap Info-search] . consult-info)
+           ;; C-x bindings in `ctl-x-map'
            ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
            ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+           ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+           ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+           ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
            ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+           ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
            ;; Custom M-# bindings for fast register access
            ("M-#" . consult-register-load)
            ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
            ("C-M-#" . consult-register)
            ;; Other custom bindings
            ("M-y" . consult-yank-pop)                ;; orig. yank-pop
-           ("<help> a" . consult-apropos)            ;; orig. apropos-command
-           ;; M-g bindings (goto-map)
+           ;; M-g bindings in `goto-map'
            ("M-g e" . consult-compile-error)
+           ("M-g r" . consult-grep-match)
            ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
            ("M-g g" . consult-goto-line)             ;; orig. goto-line
            ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
@@ -3284,14 +3357,14 @@ consult-buffer and a Swiper-like search command consult-line.
            ("M-g k" . consult-global-mark)
            ("M-g i" . consult-imenu)
            ("M-g I" . consult-imenu-multi)
-           ;; M-s bindings (search-map)
-           ("M-s d" . consult-find)
-           ("M-s D" . consult-locate)
+           ;; M-s bindings in `search-map'
+           ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+           ("M-s c" . consult-locate)
+           ("M-s g" . consult-grep)
            ("M-s G" . consult-git-grep)
            ("M-s r" . consult-ripgrep)
            ("M-s l" . consult-line)
            ("M-s L" . consult-line-multi)
-           ("M-s m" . consult-multi-occur)
            ("M-s k" . consult-keep-lines)
            ("M-s u" . consult-focus-lines)
            ;; Isearch integration
@@ -3300,7 +3373,12 @@ consult-buffer and a Swiper-like search command consult-line.
            ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
            ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
            ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
-           ("M-s L" . consult-line-multi))           ;; needed by consult-line to detect isearch
+           ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+           ;; Minibuffer history
+           :map minibuffer-local-map
+           ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+           ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+
 
     ;; Enable automatic preview at point in the *Completions* buffer. This is
     ;; relevant when you use the default completion UI. You may want to also
@@ -3310,30 +3388,28 @@ consult-buffer and a Swiper-like search command consult-line.
     ;; The :init configuration is always executed (Not lazy)
     :init
 
-    ;; Optionally configure the register formatting. This improves the register
-    ;; preview for `consult-register', `consult-register-load',
-    ;; `consult-register-store' and the Emacs built-ins.
-    (setq register-preview-delay 0.5
-          register-preview-function #'consult-register-format)
-
-    ;; Optionally tweak the register preview window.
-    ;; This adds thin lines, sorting and hides the mode line of the window.
+    ;; Tweak the register preview for `consult-register-load',
+    ;; `consult-register-store' and the built-in commands.  This improves the
+    ;; register formatting, adds thin separator lines, register sorting and hides
+    ;; the window mode line.
     (advice-add #'register-preview :override #'consult-register-window)
-
-    ;; Optionally replace `completing-read-multiple' with an enhanced version.
-    (advice-add #'completing-read-multiple :override #'consult-completing-read-multiple)
+    (setq register-preview-delay 0.5)
 
     ;; Use Consult to select xref locations with preview
     (setq xref-show-xrefs-function #'consult-xref
           xref-show-definitions-function #'consult-xref)
+
+    ;; Configure other variables and modes in the :config section,
+    ;; after lazily loading the package.
+
     :config
     (consult-customize
-     consult-theme
-     :preview-key '(:debounce 0.2 any)
-     consult-ripgrep consult-git-grep consult-grep
+     consult-theme :preview-key '(:debounce 0.2 any)
+     consult-ripgrep consult-git-grep consult-grep consult-man
      consult-bookmark consult-recent-file consult-xref
-     consult--source-bookmark consult--source-recent-file
-     consult--source-project-recent-file
+     consult-source-bookmark consult-source-file-register
+     consult-source-recent-file consult-source-project-recent-file
+     ;; :preview-key "M-."
      :preview-key '(:debounce 0.4 any))
 
     (setq consult-narrow-key "<") ;; (kbd "C-+")
@@ -3408,47 +3484,39 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     :config
     (setq my/gpt-refactor-prompt
           (concat "You are Chris Lattner. "
-                  "Refactor the following code.\n"
+                  "Refactor the code.\n"
                   "- Generate ONLY code as output, without any explanation or markdown code fences.\n"
                   "- Additionally, revise the comment and consider renaming variables if appropriate."
                   ))
 
-    (defmacro my/define-embark-gpt-refactor (backend-sym &optional model-sym)
+    (defmacro my/define-embark-gpt-refactor (backend-sym &optional model-sym proxy-url)
       "Create a refactoring command for BACKEND-SYM with optional MODEL-SYM.
-       Defaults to the backend's first available model when MODEL-SYM is nil."
+       Defaults to the backend's first available model when MODEL-SYM is nil.
+       PROXY-URL overrides `gptel-proxy' when specified."
       (let* ((backend (eval backend-sym))
              (backend-name (gptel-backend-name backend))
              (model (or model-sym (car (gptel-backend-models backend))))
+             (proxy (or proxy-url gptel-proxy))
              (fn (intern (format "%s-%s-refactor" backend-name (symbol-name model)))))
         `(defun ,fn (prompt)
-           (let ((refactor-model ',model))
-             (my/gpt-refactor ,backend-sym refactor-model my/gpt-refactor-prompt prompt)))))
+           (my/gpt-refactor ,backend-sym ',model my/gpt-refactor-prompt prompt ,proxy))))
 
     (define-key embark-file-map     (kbd "o") (my/embark-ace-action find-file))
     (define-key embark-buffer-map   (kbd "o") (my/embark-ace-action switch-to-buffer))
     (define-key embark-bookmark-map (kbd "o") (my/embark-ace-action bookmark-jump))
 
-    (defvar-keymap gptel-anthropic-model-map
-      :doc "Prefix: refactor code via Anthropic models"
-      "s" (my/define-embark-gpt-refactor gptel--sonnet-thinking)
-      "o" (my/define-embark-gpt-refactor gptel--opus-thinking))
+    (defvar-keymap gptel-model-map
+      :doc "Prefix: select an model for refactoring"
+      "i" (my/define-embark-gpt-refactor gptel--openrouter ~anthropic/claude-opus-latest)
+      "u" (my/define-embark-gpt-refactor gptel--openrouter ~openai/gpt-latest)
+      "y" (my/define-embark-gpt-refactor gptel--openrouter ~google/gemini-pro-latest)
+      "o" (my/define-embark-gpt-refactor gptel--anthropic claude-opus-4-7 "")
+      "p" (my/define-embark-gpt-refactor gptel--openai--cc gpt-5.5 "")
+      "g" (my/define-embark-gpt-refactor gptel--gemini gemini-3.1-pro-preview)
+      "d" (my/define-embark-gpt-refactor gptel--deepseek deepseek-v4-pro ""))
 
-    (defvar-keymap gptel-openrouter-model-map
-      :doc "Prefix: select an OpenRouter model for refactoring"
-      "o" (my/define-embark-gpt-refactor gptel--openrouter openai/gpt-5)
-      "z" (my/define-embark-gpt-refactor gptel--openrouter z-ai/glm-4.6)
-      "c" (my/define-embark-gpt-refactor gptel--openrouter openai/gpt-5-codex)
-      "q" (my/define-embark-gpt-refactor gptel--openrouter qwen/qwen3-coder-plus)
-      "d" (my/define-embark-gpt-refactor gptel--openrouter deepseek/deepseek-r1-0528)
-      "x" (my/define-embark-gpt-refactor gptel--openrouter x-ai/grok-4))
-
-    (fset 'gptel-anthropic-model-map gptel-anthropic-model-map)
-    (fset 'gptel-openrouter-model-map gptel-openrouter-model-map)
-
-    (keymap-set embark-region-map "g" (my/define-embark-gpt-refactor gptel--gemini))
-    (keymap-set embark-region-map "a" 'gptel-anthropic-model-map)
-    (keymap-set embark-region-map "d" (my/define-embark-gpt-refactor gptel--deepseek))
-    (keymap-set embark-region-map "o" 'gptel-openrouter-model-map)
+    (fset 'gptel-model-map gptel-model-map)
+    (keymap-set embark-region-map "g" 'gptel-model-map)
     (define-key embark-file-map  (kbd "s") 'my/scp-file)
 
     :bind
@@ -3485,33 +3553,13 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
     (corfu-auto t)                 ;; Enable auto completion
     ;; (global-corfu-modes '((not shell-mode) t))
+    (corfu-quit-no-match t)      ;; Quit if there is no match.
     (corfu-preview-current nil)
+    (corfu-on-exact-match 'insert) ;; Configure handling of exact matches
     ;; https://github.com/minad/corfu/discussions/457
     (text-mode-ispell-word-completion nil) ;; disable ispell
 
     :config
-    (when (featurep 'tty-child-frames)
-      (setq corfu--frame-parameters
-            '((no-accept-focus . t)
-              (no-focus-on-map . t)
-              (min-width . t)
-              (min-height . t)
-              (border-width . 0)
-              (outer-border-width . 0)
-              (internal-border-width . 0)
-              (child-frame-border-width . 1)
-              (vertical-scroll-bars . nil)
-              (horizontal-scroll-bars . nil)
-              (menu-bar-lines . 0)
-              (tool-bar-lines . 0)
-              (tab-bar-lines . 0)
-              (no-other-frame . t)
-              (unsplittable . t)
-              (undecorated . t)
-              (cursor-type . nil)
-              (no-special-glyphs . t)
-              (desktop-dont-save . t))))
-
     ;; https://github.com/minad/corfu/issues/330
     (advice-add 'python-shell-completion-at-point :around
                 (lambda (fun &optional arg)
@@ -3534,8 +3582,6 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     (add-to-list 'completion-at-point-functions #'cape-dabbrev)
     ;; (add-to-list 'completion-at-point-functions #'cape-history)
     (add-to-list 'completion-at-point-functions #'cape-keyword)
-    :config
-    (advice-add 'eglot-completion-at-point :around #'cape-wrap-buster)
     :custom
     (dabbrev-check-all-buffers nil))
 
@@ -3553,27 +3599,6 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     ;; Enable indentation+completion using the TAB key.
     ;; `completion-at-point' is often bound to M-TAB.
     (tab-always-indent 'complete))
-#+end_src
-
-*** terminal popup
-
-#+begin_src emacs-lisp
-  (use-package corfu-terminal
-    :init
-    (unless (corfu--popup-support-p)
-      (corfu-terminal-mode +1))
-    :custom
-    (corfu-terminal-position-right-margin 1))
-#+end_src
-
-*** COMMENT show diagnose information
-
-#+begin_src emacs-lisp
-  (use-package flymake-popon
-    :custom-face
-    (flymake-popon ((t (:inherit corfu-default))))
-    :hook
-    (flymake-mode . flymake-popon-mode))
 #+end_src
 
 ** crux
@@ -4058,17 +4083,14 @@ files. We're using:
  dired-rsync – asynchronous rsync from dired
 
 #+begin_src emacs-lisp
-   (use-package dired-rsync
-     :config
-     (bind-key "C-c C-r" 'dired-rsync dired-mode-map))
-#+end_src
-
-#+begin_src emacs-lisp
-  (use-package async
-    :custom
-    (dired-async-skip-fast t)
+  (use-package dired-rsync
+    :defer nil
     :config
-    (dired-async-mode 1))
+    (add-to-list 'mode-line-misc-info 'dired-rsync-modeline-status t)
+    :bind
+    (:map  dired-mode-map
+           ("C-c C-r" . dired-rsync)
+           ("C-c C-x" . dired-rsync-transient)))
 #+end_src
 
 ** COMMENT LanguageTool

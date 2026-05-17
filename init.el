@@ -1,3 +1,5 @@
+;;; init.el --- -*- lexical-binding: t; -*-
+
 (require 'package)
 (setq package-archives
       '(("melpa" . "https://www.mirrorservice.org/sites/melpa.org/packages/")
