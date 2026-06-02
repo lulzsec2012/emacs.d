@@ -1,12 +1,24 @@
 ;;; init.el --- -*- lexical-binding: t; -*-
 
+;; Compatibility shims for Emacs 30+ functions missing from this build.
+;; Needed by the latest magit.
+(unless (fboundp 'set-local)
+  (defun set-local (variable value)
+    "Set VARIABLE to VALUE in the current buffer."
+    (set (make-local-variable variable) value)))
+(unless (fboundp 'any)
+  (defun any (pred list)
+    "Return non-nil if PRED returns non-nil for any element of LIST.
+Like `cl-some' with the predicate as the first argument."
+    (cl-some pred list)))
+
 (require 'package)
 (setq package-archives
-      '(("melpa" . "https://www.mirrorservice.org/sites/melpa.org/packages/")
-        ("melpa-stable" . "https://www.mirrorservice.org/sites/stable.melpa.org/packages/")
-        ("gnu"   . "https://elpa.gnu.org/packages/")
+      '(("melpa" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")
+        ("melpa-stable" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa-stable/")
+        ("gnu"   . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
         ;; ("gnu-devel"   . "https://elpa.gnu.org/devel/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
         ))
 (setq package-install-upgrade-built-in t)
 (package-initialize)
