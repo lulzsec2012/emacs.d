@@ -1286,6 +1286,33 @@ Enable mouse-mode in terminal
   (xterm-mouse-mode +1)
 #+end_src
 
+** Right-click paste
+
+#+begin_src emacs-lisp
+  ;; Right-click yanks (pastes) at click position instead of showing menu
+  ;; Must bind [down-mouse-3] because context menu fires on press, not release
+  (when (bound-and-true-p context-menu-mode)
+    (context-menu-mode -1))
+  (global-set-key [down-mouse-3] 'mouse-yank-at-click)
+#+end_src
+
+** Shell completion: fix dot-file TAB in cd/path
+
+Shell-mode 的 pcomplete 词边界检测将 `.` 视为标点符号，导致 `.emacs` TAB 补全时只传 `"emacs"` 给补全表而找不到 `.emacs.d`。
+改用 comint-filename-completion 处理文件路径，文件不匹配时回退到 pcomplete。
+
+#+begin_src emacs-lisp
+  (defun my-shell-capf ()
+    "Shell completion: file-name completion first, pcomplete fallback.
+  Fixes pcomplete's dot-file bug (treats `.` as punctuation boundary)."
+    (or (comint-filename-completion)
+        (pcomplete-completions-at-point)))
+
+  (add-hook 'shell-mode-hook
+            (defun my-shell-mode-capf-setup ()
+              (setq-local completion-at-point-functions '(my-shell-capf))))
+#+end_src
+
 *** Fold and unfold code blocks
 
 Hydra short-keys
