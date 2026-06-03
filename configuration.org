@@ -332,6 +332,31 @@ Using light theme on MacOS.
     (my/load-theme my/choosing-theme))
 #+end_src
 
+Auto-switch theme by time of day.
+
+#+begin_src emacs-lisp
+  (defun my/auto-switch-theme-by-time ()
+    "Switch to ef-light at 18:00, ef-elea-dark at 06:00."
+    (let* ((hour (string-to-number (format-time-string "%H")))
+           ;; 06:00-17:59 → ef-elea-dark (day), 18:00-05:59 → ef-light (night)
+           (new-theme (if (or (>= hour 18) (< hour 6))
+                          'ef-light
+                        'ef-elea-dark)))
+      (unless (eq (car custom-enabled-themes) new-theme)
+        (when (car custom-enabled-themes)
+          (disable-theme (car custom-enabled-themes)))
+        ;; Clear theme-pool toggle so load-theme doesn't conflict
+        (setq my/choosing-theme new-theme)
+        (my/load-theme new-theme))))
+
+  ;; Run on startup
+  (my/auto-switch-theme-by-time)
+
+  ;; Schedule daily switches
+  (run-at-time "6:00am" 86400 #'my/auto-switch-theme-by-time)   ;; 06:00 → dark
+  (run-at-time "6:00pm" 86400 #'my/auto-switch-theme-by-time)   ;; 18:00 → light
+#+end_src
+
 #+BEGIN_SRC emacs-lisp
   (if (daemonp)
       (add-hook 'after-make-frame-functions
