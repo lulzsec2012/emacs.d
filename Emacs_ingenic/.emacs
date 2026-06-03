@@ -6,6 +6,9 @@
 ;; (defconst ENV_EMACS_DIR "~/.emacs.d/Emacs_ingenic/.environment/emacs/")
 ;; (add-to-list 'load-path ENV_EMACS_DIR)
 
+;; Emacs 31 compat: kill-this-buffer only works from menus
+(defalias 'kill-this-buffer 'kill-current-buffer)
+
 ;; Enable CUA mode
 ;; This maps edit keys to standard Windows keystokes. It requires the
 ;; library cua-mode.el from Kim Storm at the following URL:
