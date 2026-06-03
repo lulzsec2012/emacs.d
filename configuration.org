@@ -3623,6 +3623,22 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     :custom
     (dabbrev-check-all-buffers nil))
 
+  ;; Shell mode completion — company-shell for bash-aware completions,
+  ;; bridged via cape so corfu renders the popup.
+  (use-package company-shell
+    :ensure t
+    :after cape
+    :hook (shell-mode . my/shell-completion-setup)
+    :config
+    (defun my/shell-completion-setup ()
+      "Configure `completion-at-point-functions' in shell-mode.
+Uses `company-shell' (commands, builtins, aliases) via the cape bridge,
+plus `cape-file' for paths and `cape-dabbrev' for buffer words."
+      (setq-local completion-at-point-functions
+                  (list (cape-company-to-capf #'company-shell)
+                        #'cape-file
+                        #'cape-dabbrev))))
+
   ;; A few more useful configurations...
   (use-package emacs
     :custom
