@@ -4449,4 +4449,54 @@ Key binding guide (C-c O prefix):
   C-c O b  opencode-add-buffer-dwim — Add buffer to context
   C-c O r  opencode-add-region      — Add region to context
   C-c O s  opencode-select-open-session — Pick session
-  C-c O p  opencode-select-project  — Change project
+   C-c O p  opencode-select-project  — Change project
+
+** Align keybindings with VS Code
+
+Add keybindings that match VS Code defaults, based on ~/keybinding-comparison.md analysis.
+These are safe additions with no conflicts against existing bindings.
+
+#+begin_src emacs-lisp
+  ;; C-<home> / C-<end> — beginning/end of file (VS Code Ctrl+Home/End)
+  (global-set-key (kbd "C-<home>") #'beginning-of-buffer)
+  (global-set-key (kbd "C-<end>")  #'end-of-buffer)
+
+  ;; M-<up>/<down> — move current line up/down (VS Code Alt+↑/↓)
+  (defun my/move-line-up ()
+    "Move current line up by one.  Like VS Code Alt+Up."
+    (interactive)
+    (if (bobp)
+        (user-error "Already at first line")
+      (let ((col (current-column)))
+        (transpose-lines -1)
+        (forward-line -1)
+        (move-to-column col))))
+  (defun my/move-line-down ()
+    "Move current line down by one.  Like VS Code Alt+Down."
+    (interactive)
+    (if (eq (line-end-position) (point-max))
+        (user-error "Already at last line")
+      (let ((col (current-column)))
+        (forward-line 1)
+        (transpose-lines 1)
+        (forward-line -1)
+        (move-to-column col))))
+  (global-set-key (kbd "M-<up>")   #'my/move-line-up)
+  (global-set-key (kbd "M-<down>") #'my/move-line-down)
+
+  ;; C-<return> — insert blank line below (VS Code Ctrl+Enter)
+  (global-set-key (kbd "C-<return>") #'crux-smart-open-line)
+
+  ;; C-S-<return> — insert blank line above (VS Code Ctrl+Shift+Enter)
+  (defun my/smart-open-line-above ()
+    "Insert a new line above current and indent.  Like VS Code Ctrl+Shift+Enter."
+    (interactive)
+    (move-beginning-of-line 1)
+    (newline)
+    (forward-line -1)
+    (indent-according-to-mode))
+  (global-set-key (kbd "C-S-<return>") #'my/smart-open-line-above)
+
+  ;; C-? — redo (VS Code Ctrl+Y).  C-? = C-S-/, terminal-safe in CSI u mode.
+  (global-set-key (kbd "C-?") #'undo-redo)
+#+end_src

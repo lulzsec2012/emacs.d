@@ -33,6 +33,10 @@
 ;; =================================================================
 (global-set-key [delete] 'delete-char)
 
+;; VS Code-aligned: C-S-right/left = word select
+(global-set-key (kbd "C-S-<right>") 'forward-word)
+(global-set-key (kbd "C-S-<left>") 'backward-word)
+
 ;;(defconst font-lock-type-face "set_case_analysis")
 ;; =================================================================
 ;; Load
@@ -276,10 +280,10 @@ This is used by `comint-watch-for-password-prompt'."
   (perform-replace (get-register t) to-string nil nil nil))
 
 ;; Split/combine windows
-(global-set-key [f11] 'delete-other-windows)
+(global-set-key [f11] 'toggle-frame-fullscreen)
 (global-set-key [S-f11] 'delete-window)
 (global-set-key [f12] 'split-window-vertically)
-(global-set-key [S-f12] 'split-window-horizontally)
+(global-set-key [S-f12] 'xref-find-references)
 (global-set-key [M-f12] 'split-window-vertically)
 ;;(global-set-key [S-f5] 'split-window-horizontally)
 
@@ -426,8 +430,101 @@ This is used by `comint-watch-for-password-prompt'."
       (message "Root window not split"))))
 
 ;; ;;gtags
+
 ;; (add-hook 'c-mode-hook 'counsel-gtags-mode)
 ;; (add-hook 'c++-mode-hook 'counsel-gtags-mode)
+
+
+;; =================================================================
+;; VS Code 快捷键对齐 (添加于 2026-06-04)
+;; =================================================================
+
+;; #56 Shift+Home → 选择到行首
+(global-set-key [S-home] 'move-beginning-of-line)
+
+;; #57 Shift+End → 选择到行尾
+(global-set-key [S-end] 'move-end-of-line)
+
+;; #66 Shift+Alt+I → 末行插入光标 (multiple-cursors)
+(global-set-key (kbd "M-S-i") 'mc/edit-lines)
+
+;; #76 Ctrl+Shift+F10 → 皮查看定义
+(global-set-key [C-S-f10] 'xref-find-definitions)
+
+;; #78 Shift+F12 → 查看引用
+;; (global-set-key [S-f12] 'xref-find-references)  ;; 已替换上面的旧绑定
+
+;; #87 Ctrl+Shift+Space → 参数提示
+(global-set-key (kbd "C-S-<space>") 'eldoc)
+
+;; #101 Shift+F8 → 上一个 error/warning
+(global-set-key [S-f8] 'flymake-goto-prev-error)
+
+;; #134 Ctrl+Shift+S → 另存为
+(global-set-key (kbd "C-S-s") 'write-file)
+
+;; #159 Ctrl+Shift+` → 新建终端
+(global-set-key (kbd "C-S-`") 'eshell)
+
+
+;; === BATCH ADDITIONS (2026-06-04) ===
+;; #5 撤销
+(global-set-key (kbd "C-z") 'undo)
+;; #25 全局搜索 (grep)
+(global-set-key (kbd "C-S-f") 'deadgrep)
+;; #28 搜索全部选中
+(global-set-key (kbd "C-S-l") 'mc/mark-all-like-this)
+;; #29 选中当前词递进
+(global-set-key [C-f2] 'mc/mark-next-like-this)
+;; #45 跳转行
+(global-set-key (kbd "C-g") 'goto-line)
+;; #48 返回上一位置
+(global-set-key (kbd "C-M--") 'goto-last-change-reverse)
+;; #49 前进下一位置
+(global-set-key (kbd "C-S--") 'goto-last-change)
+;; #61 选中当前行
+(global-set-key (kbd "C-l") 'crux-other-window-or-switch-buffer)
+;; #74 跳转到定义
+(global-set-key [f12] 'xref-find-definitions)
+;; #79 重命名符号
+(global-set-key [f2] 'eglot-rename)
+;; #80 代码折叠
+(global-set-key (kbd "C-S-[") 'hs-hide-block)
+;; #81 代码展开
+(global-set-key (kbd "C-S-]") 'hs-show-block)
+;; #84 格式化文档
+(global-set-key (kbd "C-S-i") 'indent-region-or-buffer)
+;; #86 智能提示/补全
+(global-set-key [C-space] 'completion-at-point)
+;; #88 快速修复
+(global-set-key (kbd "C-.") 'eglot-code-actions)
+;; #89 函数列表
+(global-set-key (kbd "C-S-o") 'imenu-list-smart-toggle)
+;; #90 列出所有符号
+(global-set-key (kbd "C-t") 'imenu)
+;; #92 块注释
+(global-set-key (kbd "C-S-a") 'comment-box)
+;; #100 下一个 error/warning
+(global-set-key [f8] 'consult-flymake)
+;; #118 关闭当前窗口
+(global-set-key (kbd "C-w") 'delete-window)
+;; #126 Buffer List
+(global-set-key [C-tab] 'ibuffer)
+;; #133 新建文件
+(global-set-key (kbd "C-n") 'find-file)
+;; #141 打开 Dired
+(global-set-key (kbd "C-S-e") 'dired)
+;; #150 打开 Magit / Git 侧栏
+(global-set-key (kbd "C-S-g") 'magit-status)
+;; #178 Markdown 预览
+(global-set-key (kbd "C-S-v") 'markdown-live-preview-mode)
+;; #194 打开聊天
+(global-set-key (kbd "C-M-i") 'copilot-chat)
+;; #195 Agent 模式
+(global-set-key (kbd "C-S-M-i") 'copilot-chat-agent)
+;; #228 开关自动换行
+(global-set-key (kbd "M-z") 'visual-line-mode)
+
 
 ;; (with-eval-after-load 'counsel-gtags
 ;;   (define-key counsel-gtags-mode-map (kbd "M-t") 'counsel-gtags-find-definition)
