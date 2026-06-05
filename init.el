@@ -40,7 +40,7 @@ Like `cl-some' with the predicate as the first argument."
 (require 'bind-key)
 (org-babel-load-file "~/.emacs.d/configuration.org")
 
-(load-file "~/.emacs.d/Emacs_ingenic/.emacs")
+(load-file "~/.emacs.d/emacs-extras/key-bindings.el")
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -55,23 +55,7 @@ Like `cl-some' with the predicate as the first argument."
  '(history-length 500)
  '(line-number-display-limit 500000)
  '(next-line-add-newlines nil)
- '(package-selected-packages
-   '(ace-window auctex auto-compile auto-package-update back-button bazel bing-dict
-                buildbot cape clang-format compiler-explorer corfu crux
-                cython-mode dape deadgrep deft demangle-mode dired-narrow
-                dired-rsync dumb-jump easy-kill eat ef-themes elf-mode
-                emacs-opencode embark-consult exec-path-from-shell expand-region
-                expreg fanyi find-file-in-project flatbuffers-mode fussy geiser
-                git-gutter git-timemachine goto-chg gptel-agent
-                graphviz-dot-mode groovy-mode helpful hydra imenu-list
-                indent-bars jinx jq-mode magit-lfs marginalia mcp-server
-                monkeytype multiple-cursors nov ob-async opencode org-bullets
-                org-contrib org-pomodoro org-super-agenda orgalist plantuml-mode
-                popper protobuf-mode pyim rainbow-delimiters rainbow-mode
-                repeat-help request rmsbolt rspec-mode ruff-format
-                rust-playground smartparens symbol-overlay undo-tree
-                virtualenvwrapper visual-regexp vterm web-mode wgrep-deadgrep
-                wrap-region zig-mode))
+ '(package-selected-packages nil)
  '(package-vc-selected-packages
    '((opencode :url "https://codeberg.org/sczi/opencode.el.git")))
  '(scroll-bar-mode 'right)

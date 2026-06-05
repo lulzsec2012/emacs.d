@@ -56,6 +56,56 @@ config.keys = {
   { key = 's', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[27;6;115~' },
   -- #159 C-S-backtick → new terminal
   { key = '`', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[27;6;96~' },
+
+  -- =====================================================
+  -- F-keys for Emacs bindings (explicit SendString to
+  -- bypass `enable_csi_u_key_encoding` which sends
+  -- "u"-terminated sequences Emacs can't decode)
+  -- =====================================================
+  -- F1
+  { key = 'F1', mods = 'CTRL',    action = act.SendString '\x1b[1;5P' },
+  -- F2: eglot-rename / mc/mark-next-like-this / bookmark
+  { key = 'F2',                   action = act.SendString '\x1b[12~' },
+  { key = 'F2', mods = 'CTRL',    action = act.SendString '\x1b[1;5Q' },
+  { key = 'F2', mods = 'SHIFT',   action = act.SendString '\x1b[1;2Q' },
+  { key = 'F2', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6Q' },
+  -- F3: isearch
+  { key = 'F3',                   action = act.SendString '\x1b[13~' },
+  { key = 'F3', mods = 'CTRL',    action = act.SendString '\x1b[1;5R' },
+  { key = 'F3', mods = 'SHIFT',   action = act.SendString '\x1b[1;2R' },
+  { key = 'F3', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6R' },
+  -- F4: kill / save / register
+  { key = 'F4', mods = 'CTRL',    action = act.SendString '\x1b[1;5S' },
+  { key = 'F4', mods = 'SHIFT',   action = act.SendString '\x1b[1;2S' },
+  { key = 'F4', mods = 'ALT',     action = act.SendString '\x1b[1;3S' },
+  -- F5: goto-line
+  { key = 'F5',                   action = act.SendString '\x1b[15~' },
+  { key = 'F5', mods = 'CTRL',    action = act.SendString '\x1b[15;5~' },
+  -- F6: other-window / switch-to-buffer / buffer-menu
+  { key = 'F6',                   action = act.SendString '\x1b[17~' },
+  { key = 'F6', mods = 'CTRL',    action = act.SendString '\x1b[17;5~' },
+  { key = 'F6', mods = 'SHIFT',   action = act.SendString '\x1b[17;2~' },
+  -- F7: comint shell history
+  { key = 'F7',                   action = act.SendString '\x1b[18~' },
+  { key = 'F7', mods = 'SHIFT',   action = act.SendString '\x1b[18;2~' },
+  -- F8: consult-flymake
+  { key = 'F8',                   action = act.SendString '\x1b[19~' },
+  -- F9: query-replace
+  { key = 'F9',                   action = act.SendString '\x1b[20~' },
+  { key = 'F9', mods = 'CTRL',    action = act.SendString '\x1b[20;5~' },
+  { key = 'F9', mods = 'SHIFT',   action = act.SendString '\x1b[20;2~' },
+  -- F10: replace-string
+  { key = 'F10',                  action = act.SendString '\x1b[21~' },
+  { key = 'F10', mods = 'CTRL',   action = act.SendString '\x1b[21;5~' },
+  { key = 'F10', mods = 'SHIFT',  action = act.SendString '\x1b[21;2~' },
+  -- F11: fullscreen
+  { key = 'F11',                  action = act.SendString '\x1b[23~' },
+  { key = 'F11', mods = 'SHIFT',  action = act.SendString '\x1b[23;2~' },
+  -- F12: xref
+  { key = 'F12',                  action = act.SendString '\x1b[24~' },
+  { key = 'F12', mods = 'ALT',    action = act.SendString '\x1b[24;3~' },
+  -- Ctrl+Shift+V paste fix: intercept before any CSI-u encoding
+  { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom("Clipboard") },
 }
 
 config.ssh_domains = {
