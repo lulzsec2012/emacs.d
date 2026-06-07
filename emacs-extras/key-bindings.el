@@ -49,7 +49,8 @@
 (setq kill-ring-max 200)
 (setq auto-image-file-mode t)
 (setq auto-save-mode nil)
-(setq x-select-enable-clipboard t)
+(unless (eq window-system 'ns)
+  (setq x-select-enable-clipboard t))
 (setq mouse-yank-at-point t)
 
 ;; Suppress echoing when a subprocess asks for a password

@@ -146,7 +146,8 @@ instead of ringing the terminal bell."
   "When you double-click on a file in the Mac Finder open it as a
 buffer in the existing Emacs frame, rather than creating a new
 frame just for that file."
-  (setq ns-pop-up-frames nil))
+  (when (eq window-system 'ns)
+    (setq ns-pop-up-frames nil)))
 
 (defun sensible-defaults/yank-to-point-on-mouse-click ()
   "When middle-clicking the mouse to yank from the clipboard,

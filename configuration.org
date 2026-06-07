@@ -431,9 +431,10 @@ Note that this overrides the default font-related keybindings from
 =sensible-defaults=.
 
 #+BEGIN_SRC emacs-lisp
-  (if (eq system-type 'gnu/linux)
-      (setq my/default-font "Ubuntu Mono")
-    (setq my/default-font "Iosevka SS09"))
+  (cond
+   ((eq system-type 'gnu/linux) (setq my/default-font "Ubuntu Mono"))
+   ((eq system-type 'darwin)    (setq my/default-font "Iosevka SS09"))
+   (t                          (setq my/default-font "Iosevka SS09")))
 
   (setq my/default-font-size 15)
   (setq my/current-font-size my/default-font-size)
@@ -1264,6 +1265,10 @@ Get environment variable in Shell and set them to Emacs
   (define-key shell-mode-map (kbd "C-c x") 'my/get-shell-env-value-and-set-emacs)
 #+end_src
 
+;; macOS: right Option key → Super (avoid accidental Meta presses)
+(when (eq window-system 'ns)
+  (setq ns-right-option-modifier 'super))
+
 ;; OSC 52 clipboard support for SSH sessions
 (unless (eq window-system 'ns)
   (setq select-enable-clipboard t
@@ -1383,8 +1388,7 @@ using tree-sitter to manage Parser
 #+begin_src emacs-lisp
   (use-package treesit
     :ensure nil
-    :if (and (fboundp 'treesit-available-p) (treesit-available-p)
-             (eq system-type 'gnu/linux))
+    :if (and (fboundp 'treesit-available-p) (treesit-available-p))
     :custom
     ;; (treesit-extra-load-path `(,treesit-langs-folder))
     (treesit-max-buffer-size (* 100 1024 1024))
@@ -2150,7 +2154,7 @@ see what the compiler is doing.
 
 #+begin_src emacs-lisp
   (use-package beardbolt
-    :if (eq system-type 'gnu/linux)
+    :if (executable-find "g++")
     :load-path "~/.emacs.d/third_party/beardbolt/"
     :config
     (add-to-list 'beardbolt-languages '(c++-ts-mode beardbolt--c/c++-setup :base-cmd "g++" :language "c++")))
@@ -2815,7 +2819,9 @@ which checks the =$BROWSER= environment variable to choose the right browser.
 I'd like to always use Firefox, so:
 
 #+BEGIN_SRC emacs-lisp
-  (setenv "BROWSER" "safari")
+  (if (eq system-type 'darwin)
+      (setenv "BROWSER" "safari")
+    (setenv "BROWSER" "firefox"))
 #+END_SRC
 
 *** Exporting to PDF
@@ -2946,9 +2952,15 @@ Write raw LaTex document using [[https://www.gnu.org/software/auctex/][auctex]]
 ** Set pdf viewer
 
 #+BEGIN_SRC emacs-lisp
-  (setq TeX-view-program-selection  '((output-pdf "PDF Viewer")))
-  (setq TeX-view-program-list
-        '(("PDF Viewer" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b")))
+  (cond
+   ((eq system-type 'darwin)
+    (setq TeX-view-program-selection '((output-pdf "PDF Viewer")))
+    (setq TeX-view-program-list
+          '(("PDF Viewer" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b"))))
+   ((eq system-type 'gnu/linux)
+    (setq TeX-view-program-selection '((output-pdf "PDF Viewer")))
+    (setq TeX-view-program-list
+          '(("PDF Viewer" "evince %o")))))
 #+END_SRC
 
 ** Set [[https://www.gnu.org/software/auctex/reftex.html][reftex]]  References, labels, citations
