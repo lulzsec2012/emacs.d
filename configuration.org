@@ -708,6 +708,7 @@ I use =magit= to handle version control. It's lovely, but I tweak a few things:
     :bind
     ("C-x g" . magit-status)
     :config
+    (require 'magit-extras)        ;; 预加载，避免上下键触发 autoload 失败
     (use-package with-editor)
     (setq magit-bind-magit-project-status nil)
     :hook
@@ -1042,7 +1043,7 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
                 ("C-c e i" . eglot-inlay-hints-mode)
                 ("C-c e e" . my/flymake-toggle-diagnostics-at-end-of-line))
     :custom
-    ;; (eglot-autoshutdown t)
+    (eglot-autoshutdown t)         ;; 不再编辑时自动杀掉 LSP 进程，释放内存
     (eglot-events-buffer-size 0)
     (eglot-extend-to-xref t)
     (eglot-sync-connect nil)
@@ -1098,6 +1099,78 @@ Emacs Polyglot: an Emacs LSP client that stays out of your way.
                  ('fancy "all diagnostics (fancy Unicode)"))))
 
     (setq completion-category-defaults nil))
+
+  ;; --- LRU LSP 进程淘汰策略 ---
+  ;; 保持最多 `my/eglot-max-servers` 个 LSP 常驻，
+  ;; 切换 buffer 时杀掉最久未用的那个，避免内存爆炸。
+  ;; 被杀掉的 LSP 在下一次切回时自动重启。
+  (defvar my/eglot-max-servers 3
+    "最多同时保留 N 个 LSP 进程，超出的按 LRU 淘汰。")
+
+  (defvar my/eglot-server-activity (make-hash-table :test #'equal)
+    "LSP 进程最后使用时间。key=(project-dir . languageId), value=float-time。")
+
+  (defvar my/eglot-evicted-projects nil
+    "已被 LRU 淘汰的 LSP 对应的 project 列表，用于切回时自动重启。")
+
+  (defun my/eglot--server-key (server)
+    "生成 LSP 进程的唯一标识。"
+    (cons (expand-file-name (eglot--project server))
+          (eglot--languageId server)))
+
+  (defun my/eglot--current-server-key ()
+    "获取当前 buffer 所属 LSP 的 key。"
+    (when-let* ((server (ignore-errors (eglot-current-server))))
+      (my/eglot--server-key server)))
+
+  (defun my/eglot-record-activity ()
+    "记录当前 buffer 的 LSP 进程最后使用时间。"
+    (when-let* ((key (my/eglot--current-server-key)))
+      (puthash key (float-time) my/eglot-server-activity)))
+
+  (defun my/eglot--all-servers ()
+    "获取所有活跃的 LSP 进程列表。"
+    (cl-loop for ss being the hash-values of eglot--servers-by-project
+             append ss))
+
+  (defun my/eglot-evict-lru ()
+    "LSP 进程数超过上限时，杀掉最久未用的那个（保留当前的）。"
+    (let* ((servers (my/eglot--all-servers))
+           (count (length servers)))
+      (when (> count my/eglot-max-servers)
+        (let* ((current-key (my/eglot--current-server-key))
+               (lru (car (sort
+                          (cl-remove-if
+                           (lambda (s) (equal (my/eglot--server-key s) current-key))
+                           servers)
+                          (lambda (a b)
+                            (< (gethash (my/eglot--server-key a)
+                                        my/eglot-server-activity 0)
+                               (gethash (my/eglot--server-key b)
+                                        my/eglot-server-activity 0))))))
+               (evict-key (and lru (my/eglot--server-key lru))))
+          (when evict-key
+            (push evict-key my/eglot-evicted-projects)
+            (remhash evict-key my/eglot-server-activity)
+            (with-demoted-errors "[LRU eglot evict] %s"
+              (eglot-shutdown lru nil nil t)))))))
+
+  (defun my/eglot-reconnect-evicted ()
+    "如果当前 buffer 的 LSP 之前被 LRU 淘汰了，自动重启。"
+    (when-let* ((key (my/eglot--current-server-key))
+                ((member key my/eglot-evicted-projects)))
+      (setq my/eglot-evicted-projects
+            (delete key my/eglot-evicted-projects))
+      (eglot-ensure)))
+
+  (defun my/eglot--on-buffer-switch ()
+    "buffer 切换时的统一处理：记录活动 + 淘汰 + 重连。"
+    (my/eglot-record-activity)
+    (my/eglot-evict-lru)
+    (my/eglot-reconnect-evicted))
+
+  ;; 注册到 buffer 切换钩子
+  (add-hook 'buffer-list-update-hook #'my/eglot--on-buffer-switch)
 #+END_SRC
 
 *** DAP mode
@@ -3018,35 +3091,17 @@ words in the text of the visible portion of the buffer.
 
 #+begin_src emacs-lisp
   (use-package jinx
-    :hook (emacs-startup . global-jinx-mode)
+    ;; 改为手动触发，避免每键检查拖慢输入
+    :bind (("C-M-c" . jinx-correct)
+           ("C-M-p" . jinx-previous)
+           ("C-M-n" . jinx-next)
+           ("M-$"   . jinx-correct))
     :config
-    ;; On macOS, install pkg-config and Enchant so Jinx works properly.
     (setq jinx-languages "en")
-
-    ;; (length (jinx--get-overlays (point-min) (point-max) nil))
-    ;; (length (jinx--get-overlays (point-min) (point-max) t))
-    ;; (length (jinx--force-overlays (point-min) (point-max) :check t))
     (setq jinx-camel-modes
           (append jinx-camel-modes
                   '(cc-ts-mode c-mode c-or-c++-mode c++-mode c++-ts-mode c-ts-mode)))
-
-    (defun jinx--mode-line-format ()
-      "updata the spelling check error informatin."
-      (format "J{%d}" (length (jinx--get-overlays (window-start) (window-end) nil))))
-
-    (add-to-list 'mode-line-misc-info
-                 '(jinx-mode
-                   (:eval (jinx--mode-line-format))) t)
-
-    (put 'jinx-overlay 'priority -2) ;; Ensure jinx-overlay is below symbol-overlay in priority
-
-    :bind (:map jinx-mode-map
-                ("M-$" . jinx-correct)
-                ("M-p" . nil)
-                ("M-n" . nil)
-                ("C-M-c" . jinx-correct)
-                ("C-M-p" . jinx-previous)
-                ("C-M-n" . jinx-next)))
+    (put 'jinx-overlay 'priority -2))
 #+end_src
 
 *** define-word
@@ -3631,9 +3686,8 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
 #+begin_src emacs-lisp
   (use-package corfu
     :custom
-    (corfu-auto-delay 0.1)
     (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
-    (corfu-auto t)                 ;; Enable auto completion
+    (corfu-auto nil)               ;; 改为手动 TAB 触发，减少每键 LSP IPC
     ;; (global-corfu-modes '((not shell-mode) t))
     (corfu-quit-no-match t)      ;; Quit if there is no match.
     (corfu-preview-current nil)
@@ -4236,7 +4290,7 @@ https://youtu.be/51eSeqcaikM
   (setq-default
    ;; Match count next to the minibuffer prompt
    isearch-lazy-count t
-   ;; Don't be stingy with history; default is to keep just 16 entries
+   ;; Don't be stingy with history; default is to keep just 16 columns
    search-ring-max 100
    regexp-search-ring-max 100)
 #+end_src
@@ -4288,8 +4342,8 @@ https://youtu.be/51eSeqcaikM
 ** performance tuning
 
 #+begin_src emacs-lisp
-  (setq gc-cons-threshold 100000000)
-  (setq read-process-output-max (* 8 1024 1024)) ;; 8mb
+  (setq gc-cons-threshold (* 64 1024 1024))       ;; 64MB，避免单次 GC 冻结太久
+  (setq read-process-output-max (* 1 1024 1024))  ;; 1MB，过大阻塞主线程
 #+end_src
 
 ** Persistent Prefix Keymaps
@@ -4408,8 +4462,12 @@ https://github.com/microsoft/terminal/issues/2865#issuecomment-929522127
 ** sczi/opencode.el — Main OpenCode UI
 
 #+BEGIN_SRC emacs-lisp
+;; Ensure opencode is installed via package-vc on first run.
+;; This overrides the entry in init.el's custom-set-variables.
+(setq package-vc-selected-packages
+      '((opencode :url "https://codeberg.org/sczi/opencode.el.git")))
+
 (use-package opencode
-  :vc (:url "https://codeberg.org/sczi/opencode.el.git" :rev :newest)
   :demand t
   :commands (opencode opencode-connect opencode-new-session
               opencode-add-file-dwim opencode-add-buffer-dwim
