@@ -40,10 +40,11 @@ config.keys = {
   { key = ';',    mods = 'CTRL',    action = act.SendString '\x1b[27;5;59~'  },
   { key = '>',    mods = 'CTRL|SHIFT',    action = act.SendString '\x1b[27;6;62~'  },
   { key = '<',    mods = 'CTRL|SHIFT',    action = act.SendString '\x1b[27;6;60~'  },
-  { key = 'UpArrow',   mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6A' },
-  { key = 'DownArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6B' },
-  { key = 'RightArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6C' },
-  { key = 'LeftArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6D' },
+  -- C-S-Arrow 交由 CSI-u 编码处理，移除显式 SendString 避免编码冲突
+  -- { key = 'UpArrow',   mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6A' },
+  -- { key = 'DownArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6B' },
+  -- { key = 'RightArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6C' },
+  -- { key = 'LeftArrow', mods = 'CTRL|SHIFT', action = act.SendString '\x1b[1;6D' },
   -- #56 S-Home → select to line start
   { key = 'Home', mods = 'SHIFT', action = act.SendString '\x1b[1;2H' },
   -- #57 S-End → select to line end

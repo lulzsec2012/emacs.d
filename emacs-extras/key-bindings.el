@@ -220,6 +220,8 @@ This is used by `comint-watch-for-password-prompt'."
 (global-set-key [delete] 'delete-char)
 (global-set-key (kbd "C-S-<right>") 'forward-word)
 (global-set-key (kbd "C-S-<left>") 'backward-word)
+(global-set-key (kbd "C-S-<up>") 'forward-paragraph)
+(global-set-key (kbd "C-S-<down>") 'backward-paragraph)
 (global-set-key [f5] 'goto-line)
 (global-set-key (kbd "C-g") 'goto-line)
 (global-set-key (kbd "C-M--") 'goto-last-change-reverse)
