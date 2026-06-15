@@ -4462,12 +4462,9 @@ https://github.com/microsoft/terminal/issues/2865#issuecomment-929522127
 ** sczi/opencode.el — Main OpenCode UI
 
 #+BEGIN_SRC emacs-lisp
-;; Ensure opencode is installed via package-vc on first run.
-;; This overrides the entry in init.el's custom-set-variables.
-(setq package-vc-selected-packages
-      '((opencode :url "https://codeberg.org/sczi/opencode.el.git")))
-
 (use-package opencode
+  :ensure nil                      ;; VC package, not in MELPA
+  :load-path "elpa/opencode"
   :demand t
   :commands (opencode opencode-connect opencode-new-session
               opencode-add-file-dwim opencode-add-buffer-dwim

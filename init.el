@@ -11,6 +11,7 @@
     (cl-some pred list)))
 
 (require 'package)
+(setq custom-file "/dev/null")     ;; Prevent Customize writing to init.el
 (setq package-archives
       '(("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")
         ("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
