@@ -3688,10 +3688,10 @@ Emacs Mini-Buffer Actions Rooted in Keymaps
     :custom
     (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
     (corfu-auto nil)               ;; 改为手动 TAB 触发，减少每键 LSP IPC
-    ;; (global-corfu-modes '((not shell-mode) t))
+    (global-corfu-modes '((not shell-mode) t)) ;; shell 用自带补全，避免终端弹窗残留
     (corfu-quit-no-match t)      ;; Quit if there is no match.
     (corfu-preview-current nil)
-    (corfu-on-exact-match 'insert) ;; Configure handling of exact matches
+    (corfu-on-exact-match 'quit)   ;; 匹配后自动关闭弹窗
     ;; https://github.com/minad/corfu/discussions/457
     (text-mode-ispell-word-completion nil) ;; disable ispell
 
