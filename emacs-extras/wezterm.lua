@@ -2,30 +2,19 @@ local wezterm = require 'wezterm'
 
 local is_macos = wezterm.target_triple:match 'darwin' ~= nil
 
--- This will hold the configuration.
 local config = wezterm.config_builder()
 
--- This is where you actually apply your config choices.
-
--- For example, changing the initial geometry for new windows:
 config.initial_cols = 120
 config.initial_rows = 28
-
--- or, changing the font size and color scheme.
 config.font_size = 10
 config.font = wezterm.font(is_macos and 'Iosevka SS09' or 'Ubuntu Mono')
 config.color_scheme = 'AdventureTime'
--- config.allow_win32_input_mode = false
+config.allow_win32_input_mode = false
+config.disable_default_key_bindings = true
 config.enable_csi_u_key_encoding = true
-
 config.colors = { background = '#131c2b' }
 
 local act = wezterm.action
-
--- On macOS, disable default key bindings so F-keys are not intercepted by the system
-if is_macos then
-  config.disable_default_key_bindings = true
-end
 
 config.keys = {
   -- { key = ' ',    mods = 'CTRL',    action = act.SendString '\x1b[9~'  },
